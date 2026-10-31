@@ -1,0 +1,7 @@
+<title>bobobike dev</title>
+<style>html,body{height:100%;margin:0;overflow:hidden;background:#000}#game{position:fixed;inset:0}#dbg{position:fixed;left:8px;top:8px;color:#fff;font:14px monospace;background:#0008;padding:6px 10px;z-index:5}</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+"/js/ui.js":"/dev/stubs.js","/js/audio.js":"/dev/stubs.js","/js/vehicles.js":"/dev/stubs.js"}}</script>
+<div id="game"></div><div id="dbg">loading</div>
+<script>/* dev: keep the loop running when the pane is hidden */ if (location.search.includes("timer")) window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 16);</script>
+<script type="module" src="/js/main.js"></script>
