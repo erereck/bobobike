@@ -98,10 +98,11 @@ export default [
         }
         if (i % 3 === 1) ctx.addRing(0, L / 2, 1.85);
         else if (i % 3 === 2) ctx.addCoin(0, L / 2, 1.15);
-        if (hazards && i % 6 === 3 && i < n - 1) {
-          // block from one edge to just short of the middle, 27 m apart (more than a hop at own
-          // speed: the belt does not carry you in the air); coin shows the open side
-          const bw = w * 0.42;
+        if (hazards && i % 6 === 5 && i < n - 1) {
+          // block from one edge to just short of the middle, 27 m apart (more than a hop at own speed:
+          // the belt does not carry you in the air); the first is 33 m in, so a turbo flight off a gap
+          // lands well before it; coin shows the open side
+          const bw = w * (0.36 + d01 * 0.04); // center line clear by >= 0.47 m (0.33 at 0.42 w)
           ctx.box(KIND.KILL, side * (w - bw) / 2, L / 2, 0.5, bw, 1.0, 1.2);
           ctx.addCoin(-side * w / 4, L / 2, 1.15);
           side = -side;
@@ -192,10 +193,10 @@ export default [
   },
 
   // ------------------------------------------------------------------ s_iceRink
-  // PISTA DE GELO: a wide ice rink with rows of red pillars to drift around. Pillars are too tall to
-  // hop, rows are far apart and lanes are wide (there is always a straight line through two
-  // consecutive rows, plus the wall line). Bumper walls early. First 14 m and last 12 m of ice are
-  // clear; an angled funnel brings sliding riders back to the normal road width.
+  // PISTA DE GELO: a wide ice rink with rows of pillars to drift around (bumpers early, red later).
+  // Pillars are too tall to hop; one straight line, shown by coins from the grippy run-in on, threads
+  // every row. Bumper walls early. First 16 m and last 10 m of ice are clear; an angled funnel brings
+  // sliding riders back to the normal road width.
   {
     name: 's_iceRink',
     weight: () => 0.6,
@@ -203,12 +204,20 @@ export default [
     gen(ctx) {
       const { KIND, rng, d01 } = ctx;
       const w0 = ctx.W();
-      solid(ctx, 12, w0); // long grippy run-in: pick your line before the ice
+      // the always-open line at |x| = 2.35 (see below), on side S; coins show it from the run-in on
+      const S = rng() < 0.5 ? -1 : 1, LX = S * 2.35, LW = 4.7;
+      ctx.slab(KIND.SOLID, 0, 12, w0); // long grippy run-in: pick your line before the ice
+      ctx.coinLine(3, 11, LX, 3);
+      ctx.advance(12);
       const RW = 14 + rng() * 2;
       const sp = 20 - d01 * 3;
       const rows = 2 + Math.floor(rng() * 2 + d01 * 1.5);
-      const RL = 14 + (rows - 1) * sp + 12;
-      ctx.slab(KIND.ICE, 0, RL, RW);
+      const RL = 16 + (rows - 1) * sp + 10;
+      // the ice is three strips; the one under the open line is built first, so the track's center path
+      // (progress mapping, playtest bot) runs along the line that threads every row
+      ctx.slab(KIND.ICE, 0, RL, LW, { off: LX });
+      ctx.slab(KIND.ICE, 0, RL, RW / 2, { off: -S * RW / 4 });
+      ctx.slab(KIND.ICE, 0, RL, RW / 2 - LW, { off: S * (LW + RW / 2) / 2 });
       ctx.banner(3, RW, ['PISTA DE GELO', 'DERRAPA SEM MEDO!'], '#bde7ff', '#1b1f3b', false);
       if (d01 < 0.55) {
         rail(ctx, 0, RL, RW, -1, { h: 0.9 });
@@ -221,26 +230,25 @@ export default [
         deadly ? undefined : { color: ctx.colors.KERB_DARK });
       let last = 1; // the first row always leaves the middle open
       for (let r = 0; r < rows; r++) {
-        const f = 14 + r * sp;
+        const f = 16 + r * sp;
         let pat = r === 0 ? 0 : Math.floor(rng() * (d01 > 0.4 ? 3 : 2));
         if (pat === last) pat = (pat + 1) % (d01 > 0.4 ? 3 : 2);
         last = pat;
-        // a straight line at |x| ~ 1.6..2.7 threads every pattern (pillar hitboxes shrink 0.22 m)
+        // a straight line at |x| ~ 1.75..2.95 threads every pattern (rider radius 0.45; 1.55..3.15 once
+        // the pillars are red, their hitboxes shrink 0.22 m): coins sit on it at |x| = 2.35, so following
+        // them never needs a lane change on the ice
         if (pat === 0) { // two pillars, middle and walls open
-          const a = 3.9 + rng() * 0.5;
+          const a = 4.3 + rng() * 0.5;
           pillar(-a, f); pillar(a, f);
-          ctx.coinLine(f - 4, f + 4, 0, 3);
         } else if (pat === 1) { // one pillar in the middle, both sides open
-          const x = (rng() - 0.5) * 0.8;
-          pillar(x, f);
-          const s = rng() < 0.5 ? -1 : 1;
-          ctx.coinLine(f - 4, f + 4, x + s * 3.2, 3);
+          pillar((rng() - 0.5) * 0.8, f);
         } else { // three pillars, two lanes
           const e = RW / 2 - 1.6;
           pillar(-e, f); pillar(0, f); pillar(e, f);
-          ctx.addCoin(-e / 2, f, 1.15); ctx.addCoin(e / 2, f, 1.15);
         }
+        ctx.coinLine(f - 5, f + 5, LX, 3);
       }
+      ctx.addRing(LX, RL - 2, 1.85);
       ctx.advance(RL);
       funnel(ctx, RW, w0, 12, 8);
     },
@@ -279,10 +287,14 @@ export default [
         ctx.advance(L);
         ctx.turn(step * dir);
       }
-      ctx.slab(KIND.SOLID, 0, 10, w);
-      rail(ctx, 0, 6, w, -1, { h: TH });
-      rail(ctx, 0, 6, w, 1, { h: TH, alt: true });
-      ctx.advance(10);
+      // grippy exit walled all along: sliding on ice the nose can point well off the wall line, and
+      // grip snaps the velocity to the nose (a turbo slide used to shoot off the side here)
+      ctx.slab(KIND.SOLID, 0, 12, w);
+      rail(ctx, 0, 7, w, -1, { h: TH });
+      rail(ctx, 0, 7, w, 1, { h: TH, alt: true });
+      rail(ctx, 7, 12, w, -1, { alt: true });
+      rail(ctx, 7, 12, w, 1);
+      ctx.advance(12);
     },
   },
 
@@ -394,7 +406,7 @@ export default [
       const sp = 21 - d01 * 3;
       let side = rng() < 0.5 ? -1 : 1;
       for (let f = 11; f < L - 7; f += sp) {
-        const bw = w * (0.4 + d01 * 0.04);
+        const bw = w * (0.38 + d01 * 0.03); // center line clear by 0.9 m early, 0.45 m at the end (on ice)
         ctx.box(KIND.KILL, side * (w - bw) / 2, f, 0.5, bw, 1.0, 1.2);
         ctx.coinLine(f - 3, f + 3, -side * (w - bw) / 2, 3);
         side = -side;
@@ -424,11 +436,11 @@ export default [
       ctx.slab(KIND.BOOST, 2, 6, w, { dy: 0.06, th: 0.3 });
       ctx.coinLine(7, 11, 0, 2);
       ctx.advance(12);
-      // the pit: bouncy floor, tall side walls (4.6 m above the floor; they block up to 4.1 m, bounces
-      // peak at 6.6-8.5 m, so coins stay well inside to not lure riders over them)
+      // the pit: bouncy floor, tall side walls (9 m above the floor; they block up to 8.5 m, above the
+      // highest possible bounce apex of 24^2/68 = 8.47 m, so steering in the air can't fly you out)
       ctx.slab(KIND.BOUNCE, 0, PL, w, { dy: -drop });
       for (const s of [-1, 1]) {
-        ctx.slab(KIND.SOLID, -0.5, PL + 0.5, 0.8, { off: s * (w / 2 + 0.4), dy: 2.2, th: drop + 3.6, noDist: true, color: s < 0 ? ctx.colors.WHITE : ctx.colors.BOUNCE });
+        ctx.slab(KIND.SOLID, -0.5, PL + 0.5, 0.8, { off: s * (w / 2 + 0.4), dy: 9 - drop, th: 10.4, noDist: true, color: s < 0 ? ctx.colors.WHITE : ctx.colors.BOUNCE });
       }
       [11, 19, 27, 35].forEach((x, i) => ctx.addRing((i % 2 ? 1 : -1) * 1.2, x, -drop + 4.4 + (i % 2) * 0.8));
       for (let i = 0; i < 8; i++) ctx.addCoin(Math.sin(i * 1.3) * (w / 2 - 3), 6 + i * 4.6, -drop + 3 + (i % 3) * 0.7);
@@ -463,12 +475,13 @@ export default [
       ctx.slab(KIND.SOLID, 0, L, 0.8, { noDist: true, color: ctx.colors.KERB_DARK });
       for (let f = 2; f < L - 2; f += 6) ctx.decor(0, f + 1.5, 0.01, 0.3, 0.04, 3, { color: ctx.colors.WHITE });
       if (d01 < 0.5) for (const s of [-1, 1]) rail(ctx, 0, L, w, s, { alt: s > 0 });
-      // fast lane: kill blocks alternating across the lane, coins on the free side. Spaced well past
-      // a jump's length (~23 m at own speed: the belt does not push you in the air); they stop
-      // short of the lane's middle, so a dead-straight line threads them even at turbo
+      // fast lane: kill blocks alternating across the lane, coins on the free side. Spaced past a
+      // jump's length (<= 25 m at own top speed: the belt does not push you in the air; a turbo hop
+      // over one lands on the free side of the next); the first sits 38 m in, time to settle into the
+      // lane at belt + top speed; they stop short of the lane's middle, so a straight line threads them
       let side = rng() < 0.5 ? -1 : 1;
-      for (let f = 22; f < L - 8; f += 29) {
-        const bw = lw * 0.38;
+      for (let f = 30; f < L - 8; f += 26) {
+        const bw = lw * (0.3 + d01 * 0.06); // lane center line clear by 0.75 m early, 0.45 m at the end
         ctx.box(KIND.KILL, lane(fast) + side * (lw - bw) / 2, f, 0.5, bw, 1.0, 1.2);
         ctx.coinLine(f - 4, f + 4, lane(fast) - side * lw / 4, 3);
         side = -side;

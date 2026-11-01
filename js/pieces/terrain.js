@@ -45,12 +45,13 @@ export default [
       const w = Math.max(ctx.W() + 1.2, 7);
       const c = ctx.pickColor(), cs = ctx.shade(c), road = ctx.pickColor();
       const pits = ctx.cur.dist > 400 && d01 > 0.25 && rng() < 0.3 + d01 * 0.45;
-      const n = Math.min(5, 3 + Math.floor(rng() * 2 + d01 * 1.6));
+      // 3-4 bumps: leaves room for the long exit within the 130 m piece budget
+      const n = Math.min(4, 3 + Math.floor(rng() * 1.4 + d01 * 0.9));
       ctx.slab(KIND.SOLID, 0, 8, w, { color: road });
       ctx.advance(8);
-      // the big bump sits early so turbo flights off it (a crest hop at 48 m/s flies ~60 m) still land
-      // inside the piece: it is followed by >= 2 bumps and the 30 m exit
-      const bigIdx = n > 4 && rng() < 0.5 ? 1 : 0;
+      // the big bump comes first so turbo flights off it (lip jump at 48 m/s: ~65 m) still land
+      // inside the piece: it is followed by >= 2 bumps and the 48 m exit (>= 75 m of road)
+      const bigIdx = 0;
       for (let i = 0; i < n; i++) {
         const last = i === n - 1;
         let h = last ? 0.7 + rng() * 0.25 : (i % 2 ? 1.45 : 0.9) + rng() * 0.5 + d01 * 0.35;
@@ -73,16 +74,17 @@ export default [
         }
         ctx.advance(flat);
       }
-      // long exit: a turbo crest hop off the last bumps lands here, not in a gap after the piece
-      ctx.slab(KIND.SOLID, 0, 30, w, { color: road });
-      ctx.coinLine(6, 24, 0, 4);
-      ctx.advance(30);
+      // long exit: a turbo lip jump off the last bump (scooter 48 m/s: ~52 m from the crest) lands
+      // here, not in a gap after the piece (30 m was measured too short)
+      ctx.slab(KIND.SOLID, 0, 48, w, { color: road });
+      ctx.coinLine(8, 40, 0, 5);
+      ctx.advance(48);
     },
   },
 
   // ------------------------------------------------------------------ MEGA RAMPA
   // Two full-width boost pads guarantee speed, a 4-6 m ramp throws you into a long flight through
-  // turbo rings, and a huge landing deck (lip + ~78 m) catches even turbo + lip-jump flights.
+  // turbo rings, and a huge landing deck (lip + 88 m) catches even turbo + lip-jump flights.
   {
     name: 't_megaRamp',
     minDist: 280,
@@ -118,7 +120,9 @@ export default [
         const h = R + vy * t - 0.5 * G * t * t + 0.9;
         if (h > -D + 2.4) ctx.addRing(0, v * t, h);
       }
-      const land = 78 - gap;
+      // deck ends 88 m past the lip: the worst flight (scooter 48 m/s + lip jump off the steepest
+      // ramp, R 5.6 / L 13, deck 3 m lower) lands ~84 m out
+      const land = 88 - gap;
       ctx.advance(gap, -D);
       ctx.slab(KIND.SOLID, 0, land, w + 4, { color: road, th: 2 });
       // landing zone marks every 15 m
@@ -217,10 +221,11 @@ export default [
       // path (headless bot / record gate) from cutting diagonally across the void toward the center
       const safeX = xs[kinds.indexOf('safe')] ?? 0;
       if (safeX) ctx.slab(KIND.SOLID, 0, 14, lw, { off: safeX, dy: -0.03, th: 0.5, color: road });
-      // long merge deck: turbo hops off the last stones / gaps / the kicker land on it
-      ctx.slab(KIND.SOLID, 0, 24, TW, { color: road });
-      ctx.coinLine(10, 20, 0, 3);
-      ctx.advance(24);
+      // long merge deck: turbo hops off the last stones / gaps / the kicker land on it (a scooter's
+      // turbo + lip jump off the kicker comes down ~63 m past its lip, i.e. ~25 m into this deck)
+      ctx.slab(KIND.SOLID, 0, 30, TW, { color: road });
+      ctx.coinLine(10, 24, 0, 3);
+      ctx.advance(30);
     },
   },
 
@@ -237,16 +242,21 @@ export default [
       let n = 6 + Math.floor(rng() * 3 + d01 * 2);
       const L = 6;
       const bend = rng() < 0.6 ? turnDir(ctx, 0.5) * (0.02 + rng() * 0.03) : 0;
-      const wallH = 3.2, wallT = 0.8, archY = 7.4;
+      // walls > jump apex (2.8 m) + step-up (0.5 m): a hop cannot clear them or land on their top
+      const wallH = 3.6, wallT = 0.8, archY = 7.4;
       const floor = ctx.pickColor(), wall = ctx.pickColor(), arch = ctx.pickColor();
       const modes = d01 < 0.12 ? ['boost'] : ['boost', 'bars', 'slalom', 'bars'];
       const mode = modes[Math.floor(rng() * modes.length)];
-      // hazard segments. Bars are 36 m apart: a hop flies 0.72-0.81 s, i.e. up to ~35 m at turbo, so it
-      // always lands before the next bar (24 m put turbo landings right on top of it). Slalom blocks
-      // are steered around: 24 m apart, 18 m later on.
+      // hazard segments. The first one is in segment 5 (~40 m in, ~54 m past a gap before the piece):
+      // a turbo hop over that gap comes down <= ~45 m past it (bot runs landed on bars placed in
+      // segment 2). Bars are 36 m apart: a hop flies 0.72-0.81 s, i.e. up to ~35 m at turbo, so it
+      // always lands before the next bar. Slalom blocks are steered around: 24 m apart, 18 m later on.
       const haz = new Set();
-      if (mode === 'bars') { n = 10; haz.add(2); haz.add(8); }
-      else if (mode === 'slalom') for (let i = 2; i <= n - 2; i += d01 > 0.5 ? 3 : 4) haz.add(i);
+      if (mode === 'bars') { n = 13; haz.add(5); haz.add(11); }
+      else if (mode === 'slalom') {
+        n = 11 + Math.floor(rng() * 2 + d01);
+        for (let i = 5; i <= n - 2; i += d01 > 0.5 ? 3 : 4) haz.add(i);
+      }
       const lastHaz = haz.size ? Math.max(...haz) : -1;
       // floor after the last hazard (tunnel + exit) >= 37 m: a turbo hop over it lands inside the piece
       const exitL = lastHaz < 0 ? 10 : Math.max(10, 37 - ((n - 1 - lastHaz) * L + L / 2));
@@ -309,9 +319,9 @@ export default [
         const wi = lerp(Wm, Wn, f0 / Lf) + 0.7;
         ctx.slab(KIND.SOLID, f0 - 0.05, f1 + 0.05, wi, { color: i % 2 ? floor : ctx.shade(floor) });
       }
-      // walls taller than any jump apex (2.8 m): a rider hopping a kill cube near a wall cannot sail
-      // over it into the void
-      const wallT = 0.6, wallH = 3.0;
+      // walls taller than any jump apex (2.8 m) + the 0.5 m step-up (collide ignores a wall's top
+      // 0.5 m): a rider hopping a kill cube near a wall cannot sail over it into the void
+      const wallT = 0.6, wallH = 3.6;
       const cubes = [];
       if (d01 > 0.2) {
         const nCubes = 2 + Math.floor(rng() * (1 + d01 * 2.5));
@@ -421,18 +431,20 @@ export default [
       const { KIND } = ctx, rng = ctx.rng, d01 = ctx.d01;
       const bw = Math.max(2.9, 3.9 - d01 * 1.1);
       // kill bars sit 5 segments (40 m) apart: a hop flies up to ~35 m at turbo, so it always lands
-      // before the next bar (24 m put turbo landings right on top of it); the first one is 28 m in
+      // before the next bar; the first one is 44 m in (~58 m past a gap before the piece: a turbo
+      // hop over that gap comes down <= ~45 m past it)
       const bars = d01 > 0.3 ? (rng() < 0.35 + d01 * 0.5 ? 2 : 1) : 0;
-      const n = bars === 2 ? 9 : 5 + Math.floor(rng() * 3);
+      const n = bars === 2 ? 11 : bars ? 6 + Math.floor(rng() * 2) : 5 + Math.floor(rng() * 3);
       const L = 8;
-      const barAt = new Set(bars ? (bars > 1 ? [2, 7] : [2]) : []);
-      const lastBar = bars ? (bars > 1 ? 7 : 2) : -1;
+      const barAt = new Set(bars ? (bars > 1 ? [4, 9] : [4]) : []);
+      const lastBar = bars ? (bars > 1 ? 9 : 4) : -1;
       // deck after the last bar (bridge + exit) >= 37 m: a turbo hop over it lands inside the piece
       const exitL = lastBar < 0 ? 10 : Math.max(10, 37 - ((n - 1 - lastBar) * L + L / 2));
       const w0 = Math.max(ctx.W(), 6);
       const deck = ctx.pickColor(), tower = ctx.pickColor();
       const towers = () => {
-        for (const s of [-1, 1]) ctx.decor(s * (bw / 2 + 1.1), 0.6, 4.2, 1.1, 9.6, 1.1, { color: tower });
+        // solid posts just outside the rail line (riding through a 9.6 m tower looked broken)
+        for (const s of [-1, 1]) ctx.box(KIND.SOLID, s * (bw / 2 + 1.1), 0.6, 4.2, 1.1, 9.6, 1.1, { color: tower });
         ctx.decor(0, 0.6, 8.8, bw + 3.3, 0.8, 1.1, { color: tower });
       };
       ctx.slab(KIND.SOLID, 0, 8, w0, { color: deck });
@@ -552,7 +564,8 @@ export default [
       for (const t of [0.35, 0.7]) ctx.addRing(0, v * t, 0.9 + v * k * t - 0.5 * G * t * t + 0.9);
       // stepped landing hill: starts 1.5 m below the lip and drops 0.32 m every 2.4 m (a short hill
       // and a longer outrun when the course is already low, so the piece does not sink further)
-      const stepL = 2.4, stepD = 0.32, steps = low ? 6 : 16;
+      // (low: 5 steps keep the net height change positive: Ri - 0.6 - 5 * 0.32 > 0)
+      const stepL = 2.4, stepD = 0.32, steps = low ? 5 : 16;
       ctx.advance(1.2, -0.6);
       const hillTop = Ri - 0.6; // above the base
       for (let i = 0; i < steps; i++) {
@@ -567,7 +580,9 @@ export default [
         }
         ctx.advance(stepL, -stepD);
       }
-      const run = low ? 48 : 40; // outrun one step below the last hill step
+      // outrun one step below the last hill step; hill + outrun cover the longest flight (scooter
+      // 48 m/s + lip jump: ~69 m, ~63 m on the short low hill)
+      const run = low ? 52 : 40;
       ctx.slab(KIND.SOLID, 0, run, w + 2, { color: snow });
       ctx.coinLine(10, run - 8, 0, 6);
       ctx.advance(run);
@@ -656,8 +671,13 @@ export default [
       const w = cols * tw;
       const rows = 8 + Math.floor(rng() * 3 + d01 * 2);
       const cheese = ctx.col3('#ffd166'), cheese2 = ctx.col3('#f4b942');
-      ctx.slab(KIND.SOLID, 0, 7, w, { color: cheese2 });
-      ctx.advance(7);
+      // 26 m entry (+ 2 hole-free rows): a turbo hop over a gap just before the piece comes down
+      // <= ~45 m past it (gap strip 14 m), i.e. before the first holes (bot runs fell into them
+      // with a 7 m entry)
+      ctx.slab(KIND.SOLID, 0, 26, w, { color: cheese2 });
+      ctx.banner(8, w, ['QUEIJO SUÍÇO', 'OLHO NOS BURACOS!'], '#ffd166', '#1b1f3b', false);
+      ctx.coinLine(14, 24, 0, 3);
+      ctx.advance(26);
       const xOf = (k) => (k - (cols - 1) / 2) * tw;
       let sc = Math.floor(rng() * cols);
       const solid = [];

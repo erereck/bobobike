@@ -38,39 +38,45 @@ export default [
       const { KIND } = ctx;
       const rng = ctx.rng;
       const w = Math.max(ctx.W() + 2.5, 9.5);
-      const L = 84;
+      // long enough that a boosted (or turbo) scooter jumping off the kicker at 48 m still comes
+      // down on the golden road (~52 m flight)
+      const L = 102;
       const goldA = ctx.col3('#ffd23f'), goldB = ctx.col3('#ffb703');
       ctx.slab(KIND.SOLID, 0, 10, w);
       ctx.banner(5, w, ['CHUVA DE MOEDAS', 'PEGA TUDO!'], '#ffb703', '#1b1f3b', true);
       for (let f = 10, i = 0; f < L; f += 12, i++) {
         ctx.slab(KIND.SOLID, f, Math.min(L, f + 12), w, { color: i % 2 ? goldA : goldB });
       }
-      // optional trampoline in the middle, coins along a typical bounce arc
-      ctx.slab(KIND.BOUNCE, 13, 16, 4.6, { dy: 0.06, th: 0.3 });
+      // optional trampoline off to one side (the middle line stays free, so nobody gets thrown up
+      // by surprise in the friendly start), coins lead onto it and follow a typical bounce arc
+      const side = rng() < 0.5 ? -1 : 1;
+      const tx = side * (w / 2 - 2.2);
+      ctx.slab(KIND.BOUNCE, 13, 16, 3.6, { off: tx, dy: 0.06, th: 0.3 });
+      for (let i = 0; i < 3; i++) ctx.addCoin(tx * (0.4 + i * 0.3), 4 + i * 2.5, 1.15);
       for (let i = 1; i <= 8; i++) {
         const t = i * 0.12;
-        ctx.addCoin(0, 14.5 + 24 * t, 16 * t - 0.5 * G * t * t + 1.0);
+        ctx.addCoin(tx, 14.5 + 24 * t, 16 * t - 0.5 * G * t * t + 1.0);
       }
       // coin zigzag along the road + ring slalom (hop to grab the rings)
-      const side = rng() < 0.5 ? -1 : 1;
       const amp = w / 2 - 1.6;
       for (let i = 0; i < 10; i++) ctx.addCoin(side * Math.sin(i * 0.8) * amp, 20 + i * 2.6, 1.15);
       for (let i = 0; i < 3; i++) ctx.addRing((i - 1) * 2.2 * side, 29 + i * 6, 2.7);
       // little kicker through a ring
-      ctx.ramp(45, 51, 5, 1.1, ctx.col3('#fff3b0'));
-      ctx.addRing(0, 57, 3.0);
+      ctx.ramp(42, 48, 5, 1.1, ctx.col3('#fff3b0'));
+      ctx.addRing(0, 54, 3.0);
       // coin rain: low coins on the road, high coins that need a hop
-      for (let r = 0; r < 5; r++) {
+      for (let r = 0; r < 6; r++) {
         for (let k = -1; k <= 1; k++) {
           const high = (r + k + 2) % 2 === 0;
-          ctx.addCoin(k * 2.6, 61 + r * 3.4, high ? 3.3 : 1.15);
+          ctx.addCoin(k * 2.6, 60 + r * 3.4, high ? 3.3 : 1.15);
         }
       }
+      ctx.coinLine(84, L - 4, 0, 5);
       // boost in the middle (not at the end: it must not fling riders into the next piece);
       // a boosted hop off the kicker still lands on the golden road
       ctx.slab(KIND.BOOST, 24, 28, Math.min(w, 4.5), { dy: 0.06, th: 0.3 });
       // scenery: piles of giant coins and a treasure chest
-      for (const f of [18, 44, 70]) {
+      for (const f of [18, 44, 70, 88]) {
         for (const s of [-1, 1]) {
           const n = 3 + Math.floor(rng() * 2);
           const sizes = [];
@@ -79,8 +85,8 @@ export default [
         }
       }
       const cs = rng() < 0.5 ? -1 : 1;
-      ctx.decor(cs * (w / 2 + 4), 80, 0.8, 3.2, 1.6, 2.2, { color: ctx.col3('#8b5a2b') });
-      ctx.decor(cs * (w / 2 + 4), 80, 1.9, 3.4, 0.6, 2.4, { color: ctx.col3('#ffd23f') });
+      ctx.decor(cs * (w / 2 + 4), L - 6, 0.8, 3.2, 1.6, 2.2, { color: ctx.col3('#8b5a2b') });
+      ctx.decor(cs * (w / 2 + 4), L - 6, 1.9, 3.4, 0.6, 2.4, { color: ctx.col3('#ffd23f') });
       ctx.advance(L);
     },
   },
@@ -122,6 +128,8 @@ export default [
         ctx.advance(gap, rise);
         climbed += rise;
         ctx.slab(KIND.SOLID, 0, len, w, { th: 1.4 + climbed, color: ctx.col3(RAINBOW[i % 7]) });
+        // a high coin right in front of a tall step (or over its gap) says "hop here"
+        if (rise > 0.5 || gap > 0) ctx.addCoin(0, -gap / 2 - 0.4, 1.0);
         ctx.addCoin(side * Math.min(1.6, w / 2 - 1), len / 2, 1.15);
         side = -side;
         ctx.advance(len);
@@ -155,7 +163,9 @@ export default [
       ctx.advance(0, -sd);
       // a turbo rider (48 m/s) rolling off the plateau flies over the whole cascade: the landing
       // reaches 8 m past where that flight comes down
-      const land = Math.max(24, Math.ceil(48 * Math.sqrt((2 * drop) / G)) - steps * 5 + 8);
+      // and a turbo hop for the plateau ring (from ~4 m in, 48 m/s, vy 12.2) comes down 55–60 m out
+      const hop = (48 * (12.2 + Math.sqrt(12.2 * 12.2 + 2 * G * drop))) / G;
+      const land = Math.max(24, Math.ceil(48 * Math.sqrt((2 * drop) / G)) - steps * 5 + 8, Math.ceil(hop - (PL - 4) - steps * 5 + 2));
       ctx.slab(KIND.SOLID, 0, land, w + 1.5);
       ctx.coinLine(6, 20, 0, 5);
       // pot of gold at the end of the rainbow
@@ -325,7 +335,8 @@ export default [
       for (const s of [-1, 1]) ctx.decor(s * (w / 2 + 0.4), lf0 + 4, 0.7, 0.6, 1.4, 0.6, { color: dark });
       ctx.addCoin(0, lf0 + 4, 2.4);
       // ---- turbo belt, then laser walls sweeping side to side over a plain plate
-      const t0 = lf0 + 8, tm = t0 + 12, t1 = tm + 22;
+      // a fast hop over the laser fence comes down ~20–30 m later: the sweepers start beyond that
+      const t0 = lf0 + 8, tm = t0 + 12, t1 = tm + 26;
       const tb = ctx.slab(KIND.CONVEYOR, t0, tm, w);
       ctx.conveyor(tb, 6 + d * 2);
       ctx.coinLine(t0 + 2, tm - 2, 0, 4);
@@ -335,7 +346,7 @@ export default [
       const lw = w * 0.36, nSweep = d > 0.4 ? 2 : 1, sph = rng() * 6.28;
       const sh = d < 0.3 ? 0.7 : 3;
       for (let k = 0; k < nSweep; k++) {
-        const f = tm + 9 + k * 8; // 9 m of plain floor after the belt to pick the free side
+        const f = tm + 13 + k * 8; // 13 m of plain floor after the belt to pick the free side
         const sw = ctx.box(KIND.KILL, 0, f, sh / 2, lw, sh, 0.3, { laser: true, pool: 'dyn' });
         ctx.move(sw, { type: 'slide', axis: 'x', amp: (w - lw) / 2 - 0.1, speed: 0.8 + d * 0.5, phase: sph });
         ctx.decor(0, f, 3.6, w + 1.4, 0.5, 0.6, { color: dark });
@@ -377,11 +388,15 @@ export default [
       for (let i = 0; i < rows; i++) {
         const r = rng();
         let type = 'door';
-        if (lastType !== 'low' && r < 0.3) type = 'low';
+        // never a low beam last: a fast hop over it would sail past the exit into the next piece
+        if (lastType !== 'low' && r < 0.3 && i < rows - 1) type = 'low';
         else if (d > 0.3 && i > 0 && lastType !== 'twin' && r > 0.72) type = 'twin';
+        const prevType = lastType;
         lastType = type;
         if (type === 'door') {
           if (first) ho = clamp(ho + (rng() - 0.5) * 2.4, -lim, lim); // the first hole stays near the middle
+          // after a twin you come out of either half: the next hole sits near the middle
+          else if (prevType === 'twin') ho = clamp((rng() - 0.5) * 1.2, -lim, lim);
           else {
             let nh = clamp(ho + (rng() < 0.5 ? -1 : 1) * (1.4 + rng() * 1.4), -lim, lim);
             if (Math.abs(nh - ho) < 1.3) nh = clamp(ho > 0 ? ho - 2.1 : ho + 2.1, -lim, lim);
@@ -395,6 +410,11 @@ export default [
         plan.push({ f: fRow, type, ho });
       }
       const a1 = fRow + sp;
+      // a low beam takes the lane of the NEXT door: you line up on the ground, then hop straight
+      // through (a normal hop over it is still in the air when it crosses that door)
+      for (let i = 0; i < plan.length - 1; i++) {
+        if (plan[i].type === 'low' && plan[i + 1].type === 'door') plan[i].ho = plan[i + 1].ho;
+      }
       // arena walls, top 4 m: over any jump apex plus the 0.5 m step-up, so nobody lands on them
       for (const s of [-1, 1]) {
         ctx.box(KIND.SOLID, s * (w / 2 + 0.4), (a0 + a1) / 2, 1.3, 0.8, 5.4, a1 - a0, { color: wall });
@@ -439,7 +459,10 @@ export default [
         const s = i % 2 ? 1 : -1, f = a0 + (i + 0.5) * (a1 - a0) / 4;
         ctx.decor(s * (w / 2 + 4 + rng() * 3), f, 2, 0.5, 12, 0.5, { laser: true });
       }
-      ctx.slab(KIND.SOLID, a1, a1 + 10, Math.max(ctx.W(), 7));
+      // exit as wide as the arena: the last hole can be near a wall, and riding straight out of it
+      // must not drop you off the side; coins pull you back to the middle
+      ctx.slab(KIND.SOLID, a1, a1 + 10, w);
+      ctx.coinLine(a1 + 2, a1 + 9, 0, 3);
       ctx.advance(a1 + 10);
     },
   },
@@ -465,7 +488,7 @@ export default [
       };
       // a hill: blocky lift (0.3 m steps roll up on their own and, unlike a wedge, are safe to
       // jump onto), a short crest, then the track continues `drop` lower (airtime)
-      const hill = (rise, drop, len) => {
+      const hill = (rise, drop, len, last) => {
         const c = rng() < 0.5 ? red : white;
         const n = Math.ceil(rise / 0.3), sl = len / n, sr = rise / n;
         for (let i = 0; i < n; i++) {
@@ -480,22 +503,26 @@ export default [
         ctx.decor(-(w / 2 + 0.3), 1.5, 0.6, 0.3, 1.2, 3, { color: red });
         ctx.decor(w / 2 + 0.3, 1.5, 0.6, 0.3, 1.2, 3, { color: red });
         ctx.advance(3, -drop);
-        // landing: long enough for a turbo flight off the crest (48 m/s for sqrt(2*drop/G) s)
-        const land = Math.max(22, 48 * Math.sqrt((2 * drop) / G) + 2);
+        // landing. Hill 1: anything flying further comes down on the middle section, which is at
+        // the same level. Hill 2 ends the piece, so its landing catches a turbo flight rolling off
+        // the crest (48 m/s for sqrt(2*drop/G) s) and a hop off the crest at top speed (35 m/s)
+        const hop = (35 * (12.2 + Math.sqrt(12.2 * 12.2 + 2 * G * drop))) / G;
+        const land = last ? Math.max(22, 48 * Math.sqrt((2 * drop) / G) + 2, hop + 2) : 21;
         ctx.slab(KIND.SOLID, 0, land, w + 1, { color: white });
         stilts(0, land, 0);
         ctx.addRing(0, 7, drop - 0.2);
         return land;
       };
       // ---- station
-      ctx.slab(KIND.SOLID, 0, 10, w, { color: red });
+      // (lengths trimmed so the longest variant stays within the 130 m piece limit)
+      ctx.slab(KIND.SOLID, 0, 9, w, { color: red });
       ctx.banner(4, w, ['MONTANHA-RUSSA', 'SEGURA O CHAPÉU!'], '#e63946', '#ffffff', false);
-      ctx.coinLine(3, 9, 0, 3);
-      ctx.advance(10);
+      ctx.coinLine(3, 8, 0, 3);
+      ctx.advance(9);
       // ---- hill 1
       const r1 = 3 + rng() * 0.6;
-      const d1 = clamp(r1 + (bias < 0 ? 2.5 : bias > 0 ? -1.5 : 0), 1.5, 6);
-      const l1 = hill(r1, d1, 12);
+      const d1 = clamp(r1 + (bias < 0 ? 2.5 : bias > 0 ? -1.5 : 0), 1.5, 5.5);
+      const l1 = hill(r1, d1, 12, false);
       ctx.coinLine(l1 * 0.5, l1 - 2, 0, 4);
       ctx.advance(l1);
       // ---- middle: whoops or a railed S-curve
@@ -525,13 +552,13 @@ export default [
         }
       }
       // flat run-in, so nobody is still airborne (from a whoop pop) when the next lift starts
-      ctx.slab(KIND.SOLID, 0, 12, w, { color: white });
-      ctx.addRing(0, 6, 2.6);
-      ctx.advance(12);
+      ctx.slab(KIND.SOLID, 0, 10, w, { color: white });
+      ctx.addRing(0, 5, 2.6);
+      ctx.advance(10);
       // ---- hill 2 (bigger)
       const r2 = 3.8 + rng() * 1 + d * 0.8;
-      const d2 = clamp(r2 + (bias < 0 ? 2.5 : bias > 0 ? -1.5 : 0), 2, 6.5);
-      const l2 = hill(r2, d2, 12);
+      const d2 = clamp(r2 + (bias < 0 ? 2.5 : bias > 0 ? -1.5 : 0), 2, 6.2);
+      const l2 = hill(r2, d2, 12, true);
       ctx.coinLine(l2 * 0.55, l2 - 2, 0, 4);
       ctx.advance(l2);
     },
@@ -676,7 +703,7 @@ export default [
         ctx.advance(3.5);
       }
       // ---- pendulum hall
-      const H = 42;
+      const H = 39;
       ctx.slab(KIND.SOLID, 0, H, w, { th: 1.4 + up, color: stone });
       for (let f = 3; f < H; f += 6.5) {
         for (const s of [-1, 1]) {
@@ -688,7 +715,7 @@ export default [
       const L = 7.5, reach = w / 2 + 0.6, amp = Math.asin(Math.min(0.95, reach / L));
       const sp = 1.4 + d * 0.6, ph0 = rng() * 6.28, dir = rng() < 0.5 ? 1 : -1;
       for (let i = 0; i < nPend; i++) {
-        const f = 9 + i * 12;
+        const f = 8 + i * 12;
         const ph = ph0 + dir * i * 1.9;
         const blade = ctx.box(KIND.KILL, 0, f, 1.15, 1.1, 1.6, 0.5, { pool: 'dyn' });
         ctx.move(blade, { type: 'pendulum', length: L, amp, speed: sp, phase: ph, axis: 'x' });
@@ -716,7 +743,8 @@ export default [
         ctx.addCoin(off, ss / 2, 1.15);
         ctx.advance(ss);
       }
-      ctx.advance(1.0 + d * 0.4);
+      const gA = 1.0 + d * 0.4;
+      ctx.advance(gA);
       // ---- idol altar, then steps back down
       ctx.slab(KIND.SOLID, 0, 12, w, { th: 1.4 + Math.max(0, up), color: sand });
       const is = rng() < 0.5 ? -1 : 1;
@@ -730,7 +758,10 @@ export default [
       // back down to the entry level: the exit is long enough to catch a turbo flight off the drop
       const down = Math.max(0, up);
       ctx.advance(12, -down);
-      const ex = Math.max(10, 48 * Math.sqrt((2 * down) / G) + 2);
+      // ...and a hop over the last chasm gap at turbo (48 m/s, vy 12.2) comes down ~35–41 m later
+      // (~28 m at plain top speed): altar + exit catch it instead of the next piece (maybe a gap)
+      const hop = (48 * (12.2 + Math.sqrt(12.2 * 12.2 + 2 * G * down))) / G;
+      const ex = Math.max(10, 48 * Math.sqrt((2 * down) / G) + 2, hop + 1 - gA - 12);
       ctx.slab(KIND.SOLID, 0, ex, w, { color: stone });
       ctx.advance(ex);
     },
