@@ -43,10 +43,11 @@ Artifact (private to the owner until shared): https://claude.ai/artifact/CSa6DKF
 ## v4 (2026-11-01): many more track variations
 - DONE (lead, commit 0ffc65c, local only): piece registry + ctx API (SPEC.md "v4"), new kinds CONVEYOR/ICE/BOUNCE, laser look, motions slide-y/pendulum/blink/orbit/spin-carry, turbo rings, player carry/ice/bounce physics, tools/piece-test.mjs, ?only=<piece> URL hook.
 - DONE (commit 7db2ce4, local): 41 pack pieces built (m_ 11, t_ 11, s_ 10, x_ 9); motion + surfaces reviewed and fixed.
-- RUNNING (resumed after the session limit): wf_73009875-2aa reviews for terrain + setpieces. Resume: Workflow({scriptPath: <session>/workflows/scripts/bobobike-piece-packs-wf_73009875-2aa.js, resumeFromRunId: "wf_73009875-2aa"}).
+- DONE: wf_73009875-2aa finished (resumed once after the session limit); all 4 packs reviewed and fixed in place (commit 0c8b1b5).
+- DONE: piece-test all (56 types, 3 seeds, 40 s bots): 0 geometry problems, 0 NaN; remaining bot deaths only on timed hazards (same as built-in movers/spinner/gates). Browser walk 380 -> 3200 m through 6 zones: no console errors; desktop + 844x390 phone checked. Banners renamed (x_gelo "REINO DO GELO", t_megaRamp "ACELERA COM TUDO!"). main.js onResize ignores 0x0 sizes (zero-size composer targets).
 - DONE (lead): conveyor chevrons now scroll forward (shader time sign); pickType recency (same type within 160 m x0.2, within 420 m x0.6; set pieces x_* at least 380 m apart, same one x0.12 within 1600 m); early s_iceRink pillars are solid bumpers (deadly only past d01 0.6).
 - Mixed-track check (8 seeds x 6 km, scratch mix.mjs): 56 distinct types, ~45% pack pieces after 260 m, set pieces min 390 m / median ~985 m apart, no overlap, no warnings.
-- TODO after reviews: rename x_gelo banner (duplicates s_iceRink "PISTA DE GELO"), t_megaRamp banner says "SEGURA O W!" (no W on phones), piece-test all, playtest, push to main (Pages).
+- Known minor: the record gate spans only the collider holding the record, so on multi-strip pieces (s_iceRink) its visual posts can stand inside the wider deck (posts have no collider).
 
 ## Dev tools
 - `dev/index.html` + `dev/stubs.js`: runs the core with stand-in modules (importmap remaps /js/ui.js etc.). `?timer` keeps the loop alive when the browser pane is hidden.

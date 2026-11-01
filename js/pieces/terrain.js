@@ -95,7 +95,7 @@ export default [
       const c = ctx.pickColor(), road = ctx.pickColor();
       const pull = heightPull(ctx, 25);
       ctx.slab(KIND.SOLID, 0, 22, w, { color: road });
-      ctx.banner(4, w, ['MEGA RAMPA', 'SEGURA O W!'], '#1b1f3b', '#ffd23f', true);
+      ctx.banner(4, w, ['MEGA RAMPA', 'ACELERA COM TUDO!'], '#1b1f3b', '#ffd23f', true);
       ctx.slab(KIND.BOOST, 9, 13, w, { dy: 0.06, th: 0.3 });
       ctx.slab(KIND.BOOST, 16, 20, w, { dy: 0.06, th: 0.3 });
       ctx.coinLine(10, 20, 0, 4);

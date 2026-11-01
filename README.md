@@ -31,7 +31,7 @@ Roda direto no navegador (PC e celular), sem instalar nada. Feito com [Three.js]
 
 - **Modos:** *Normal* (começa com 3 vidas e ganha +1 a cada 3 checkpoints, máximo 6) e *Vidas Infinitas* (sem game over, recordes separados; encerre pela pausa).
 - **Pista:** mais de 50 tipos de trecho, sorteados sem repetir de perto e ficando mais difíceis com a distância. Tem esteiras (pra frente, pra trás e pros lados), gelo, camas elásticas, aros de turbo, lasers que piscam, martelos, esmagadores, elevadores, plataformas giratórias e em órbita, montanha-russa, mega rampa, túnel, caminhos divididos (seguro × arriscado) e mais.
-- **Seções especiais:** de vez em quando aparece uma seção com nome e placa (Castelo, Escada Arco-Íris, Fábrica, Labirinto de Laser, Chuva de Moedas, Templo, Salto da Fé...).
+- **Seções especiais:** de vez em quando aparece uma seção com nome e placa (O Castelo, Escada Arco-Íris, A Fábrica, Labirinto Laser, Chuva de Moedas, Montanha-Russa, Reino do Gelo, Templo Perdido, Salto da Fé).
 - **Zonas:** a cada ~620 m o céu muda (dia, tarde, pôr do sol, noite neon, aurora, nebulosa, amanhecer).
 - **Skins:** 4 grátis e 3 desbloqueadas pelo recorde do modo Normal (500 m, 1200 m e 2500 m).
 - **Recordes** ficam salvos no navegador (localStorage).

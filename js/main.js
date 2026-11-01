@@ -117,6 +117,7 @@ function applyQuality() {
 }
 function onResize() {
   const w = innerWidth, h = innerHeight;
+  if (!w || !h) return; // hidden/minimized views report 0: keep the last size (zero-size targets break the composer)
   renderer.setSize(w, h);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();

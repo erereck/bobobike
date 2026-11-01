@@ -599,7 +599,7 @@ export default [
       // runway, so even a top-speed hop lands inside this piece.
       // ---- entry
       ctx.slab(KIND.SOLID, 0, 10, w, { color: snow });
-      ctx.banner(5, w, ['PISTA DE GELO', 'ESCORREGA, MAS NÃO CAI!'], '#bde7ff', '#1b1f3b', false);
+      ctx.banner(5, w, ['REINO DO GELO', 'ESCORREGA, MAS NÃO CAI!'], '#bde7ff', '#1b1f3b', false);
       ctx.advance(10);
       // ---- ice floes over the void (they drift sideways later in the run)
       // short gaps on purpose: even a rider who jumps at top speed and comes down inside a gap
