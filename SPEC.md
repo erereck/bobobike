@@ -186,3 +186,38 @@ stats = { distance, record, isNewRecord, avgKmh, bestAvgKmh, isNewAvgRecord, top
 - Controls panel adds: "BOTÃO DIREITO + arrastar · girar câmera" and "RODINHA · zoom".
 - Game-over card must fit in 1280×720 and 1366×768 without scrolling, with "JOGAR DE NOVO" and "MENU" visible; at phone sizes it may scroll but the two buttons stay reachable (sticky footer).
 - Lives: start with `CONFIG.startLives` (3), +1 every `CONFIG.lifeEveryCheckpoints` (3) checkpoints, capped at `CONFIG.maxLives` (6). main passes `hud.maxLives = max(3, lives)`, so the heart row grows when a life is earned.
+
+---
+
+## v3 — game modes + mobile overhaul (contract)
+
+### Game modes (`MODES`, `MODE_ORDER` in config.js)
+- `ui.setMode(id)` — menu shows a two-option segmented toggle right above the JOGAR button: **Normal** / **Vidas Infinitas** (with the mode `desc` as a one-line hint). Clicking emits `'mode'` with the id. Keyboard: Tab-focusable; no new global hotkey.
+- `ui.setRecords({ bestDistance, bestAvgKmh, bestTopKmh, runs, infBestDistance, infBestAvgKmh })` — the existing panel shows the normal records; when `infBestDistance > 0` add a small line "Infinito: {dist} m · média {avg} km/h".
+- `ui.updateHUD(h)` — new field `h.infinite` (bool). When true the hearts are replaced by a single ∞ badge (no hearts, no pop animations).
+- Pause screen: new button **ENCERRAR CORRIDA** emitting `'end'` (all modes). Main then shows the game-over report.
+- `ui.showGameOver(stats)` — new `stats.mode` ('normal' | 'infinite'). In infinite mode show a small "VIDAS INFINITAS" badge next to the vehicle name and the record line compares against the infinite record (main passes the right `record`).
+
+### Touch controls v3 (replaces the old touch layer — NO auto-throttle anymore)
+`ui.touch` (live object read every frame by main):
+`{ steer: -1..1, throttle: 0..1, brake: 0..1, jump: bool, boost: bool, flip: bool, spin: bool }`
+- **Floating joystick** (Roblox-mobile style) in the left ~42% of the screen: a touch there (not on another control) spawns the base at the touch point; the knob follows within radius R ≈ min(70px, 11vmin). x → `steer` (deadzone 0.12, slight response curve), up → `throttle`, down → `brake` (deadzone 0.15 on y). Releasing resets to 0. When idle, a faint ghost joystick sits at its default spot (bottom-left, safe-area aware) with a tiny "ARRASTE" hint for the first 2 runs (localStorage flag, try/catch).
+- **Right-side buttons**: PULO (largest, bottom-right corner), TURBO (shows the turbo level as a ring/fill, driven by `updateHUD` `h.turbo`, glows when full), MORTAL and GIRO (smaller, above PULO). Semi-transparent at rest (~0.55), solid when pressed, scale-down press animation. Sizes in vmin so they scale with the phone; respect `env(safe-area-inset-*)`.
+- **Camera drag**: a touch that starts on the right half of the screen and not on a control orbits the camera. `ui.consumeCameraDrag()` returns `{ dx, dy }` in CSS pixels accumulated since the last call and resets them; main calls it every frame.
+- Multi-touch: joystick + any button + camera drag at the same time (pointer events with pointerId tracking, `setPointerCapture`, `touch-action: none`).
+- `ui.setTouch(enabled)` — show the layer only during play/countdown (main controls it).
+- Settings (in the menu's top-right settings row and in pause): **VIBRAÇÃO** on/off (`ui.setHaptics(b)`, emits `'haptics'`), **TELA CHEIA** button (emits `'fullscreen'`; hidden when `document.fullscreenEnabled` is false). Keep SOM and QUALIDADE.
+
+### Mobile HUD (applies when touch mode is on, or on short/narrow screens: `max-height: 520px` or `max-width: 760px`)
+The HUD must not cover the track. In compact mode:
+- Top-left: distance (smaller) + thin record progress line. Top-right: lives (or ∞) + coins + pause button, all compact.
+- Speed: a compact pill at top-center: "{km/h} km/h · MÉDIA {avg} [grade badge]" — replaces the big arc gauge (hide the gauge).
+- Hide the zone pill and timer during play (the zone banner still announces zone changes, thinner).
+- Turbo: no separate bar; the TURBO button shows it.
+- Toasts: smaller, under the speed pill, max 2 visible at once.
+- Countdown and zone banner scaled down.
+- Portrait phones work too: same layout, joystick bottom-left, buttons bottom-right.
+- Menu / pause / game over on phones: comfortable tap targets (≥ 44px), scrollable where needed, primary buttons always reachable.
+
+### Main responsibilities (lead)
+Infinite mode logic and separate records (`store.infBestDistance`, `store.infBestAvgKmh`), skins unlock only from normal-mode records, `'end'` → game over, joystick input (analog throttle/brake/steer), camera drag from `consumeCameraDrag()`, haptics via `navigator.vibrate`, Screen Wake Lock during play, fullscreen + landscape orientation lock attempt, wider FOV in portrait.

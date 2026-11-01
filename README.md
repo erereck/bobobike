@@ -25,13 +25,13 @@ Roda direto no navegador (PC e celular), sem instalar nada. Feito com [Three.js]
 | Botão direito + arrastar | girar a câmera |
 | Rodinha | zoom |
 
-No celular aparecem botões na tela e o veículo acelera sozinho. Controle de videogame também funciona.
+**Celular:** joystick no polegar esquerdo (pra cima acelera, pra baixo freia, pros lados vira), botões de PULO, TURBO, MORTAL e GIRO à direita, e arrastar no lado direito da tela gira a câmera. Tem vibração (dá pra desligar) e botão de tela cheia. Controle de videogame também funciona.
 
 ## Como funciona
 
-- **Vidas:** começa com 3 e ganha +1 a cada 3 checkpoints (máximo 6).
+- **Modos:** *Normal* (começa com 3 vidas e ganha +1 a cada 3 checkpoints, máximo 6) e *Vidas Infinitas* (sem game over, recordes separados; encerre pela pausa).
 - **Zonas:** a cada ~620 m o céu muda (dia, tarde, pôr do sol, noite neon, aurora, nebulosa, amanhecer).
-- **Skins:** 4 grátis e 3 desbloqueadas pelo recorde (500 m, 1200 m e 2500 m).
+- **Skins:** 4 grátis e 3 desbloqueadas pelo recorde do modo Normal (500 m, 1200 m e 2500 m).
 - **Recordes** ficam salvos no navegador (localStorage).
 
 ## Rodar localmente

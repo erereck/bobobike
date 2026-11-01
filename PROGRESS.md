@@ -35,6 +35,11 @@ Artifact (private to the owner until shared): https://claude.ai/artifact/CSa6DKF
 - DONE wf_32aa2e10-93d (core review): physics/main fixes landed; lead applied safe perf items (partial instance uploads, no canvas MSAA with composer, skip render while paused), wider slalom/kill-strip spacing, early pillars as rhythm section, landing strip after every gap. Bot (tools/bot.mjs) now reaches 500-1000 m on most seeds.
 - Lives: start 3, +1 every 3 checkpoints, cap 6. Grades S84/A66/B48/C30.
 
+## v3 (2026-11-01): infinite-lives mode + mobile overhaul
+- Contract: SPEC.md "v3". config.js MODES/MODE_ORDER.
+- DONE (lead): main.js — infinite mode + separate records (infBestDistance/infBestAvgKmh), skins only from normal mode, 'end' event, analog joystick input (no auto-throttle), touch camera drag via ui.consumeCameraDrag(), haptics, wake lock, fullscreen + landscape lock, portrait FOV, sharper low-quality pixel ratio on phones.
+- DONE workflow wf_49fce5a9-b14 (mobile UI): floating joystick, right-side buttons with turbo ring, camera drag, compact HUD (speed pill), mode toggle, haptics/fullscreen settings, pause ENCERRAR CORRIDA. Verified in phone emulation 844x390, 740x360, 375x812.
+
 ## Dev tools
 - `dev/index.html` + `dev/stubs.js`: runs the core with stand-in modules (importmap remaps /js/ui.js etc.). `?timer` keeps the loop alive when the browser pane is hidden.
 - Headless bot: `node tools/bot.mjs <absolute obby path> bike <seed> <seconds>` (needs `npm i --no-save three@0.160.0`).

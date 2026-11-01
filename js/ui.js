@@ -2,7 +2,7 @@
 // banners, game-over report (with sparkline) and multi-touch controls.
 // Markup + CSS live in index.html. updateHUD() runs every frame: it caches the last
 // displayed (rounded) values and only touches the DOM / gauge canvas when they change.
-import { CONFIG, gradeFor } from './config.js';
+import { CONFIG, gradeFor, MODES, MODE_ORDER } from './config.js';
 import { zoneAt } from './themes.js';
 
 // ---------------------------------------------------------------- constants
@@ -26,7 +26,16 @@ const TIPS = [
   'cada zona muda o céu. Até onde você chega?',
 ];
 const TOAST_KINDS = { trick: 1, good: 1, bad: 1, record: 1, info: 1 };
-const DEBOUNCED = { play: 1, restart: 1, menu: 1, resume: 1, pause: 1 };
+const DEBOUNCED = { play: 1, restart: 1, menu: 1, resume: 1, pause: 1, end: 1, fullscreen: 1 };
+// Chunky infinity sign (ink outline under a colored stroke), shared by the HUD badge and the mode toggle.
+const INF_PATH = 'M9 4a5 5 0 1 0 0 10c5 0 11-10 16-10a5 5 0 1 1 0 10c-5 0-11-10-16-10z';
+const INF_SVG =
+  '<svg class="inf-svg" viewBox="0 0 34 18" aria-hidden="true"><path d="' + INF_PATH + '" fill="none" stroke="#0b0d17" stroke-width="7" stroke-linejoin="round"/>' +
+  '<path d="' + INF_PATH + '" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round"/></svg>';
+const MODE_ICONS = {
+  normal: '<svg class="heart-svg" viewBox="-0.6 -0.6 8.2 7.2" aria-hidden="true"><path d="M1 0H3V1H4V0H6V1H7V3H6V4H5V5H4V6H3V5H2V4H1V3H0V1H1Z"/></svg>',
+  infinite: INF_SVG,
+};
 
 // Grade bands, ascending by speed: [{ grade, lo, hi, color }]
 const GRADES_DESC = CONFIG.grades.slice().sort((a, b) => b.min - a.min);
@@ -223,12 +232,20 @@ export function createUI() {
     goGrade: $('go-grade'), goAvg: $('go-avg'), goWord: $('go-word'), goBestAvg: $('go-bestavg'), goNewAvg: $('go-newavg'),
     goSpark: $('go-spark'), goHint: $('go-hint'), goHintTxt: $('go-hinttxt'),
     goTop: $('go-top'), goTime: $('go-time'), goTricks: $('go-tricks'), goCoins: $('go-coins'), goFalls: $('go-falls'), goCps: $('go-cps'),
-    touch: $('touch'), tBoost: $('t-boost'),
+    touch: $('touch'), tBoost: $('t-boost'), stick: $('t-stick'), knob: $('t-knob'), tHint: $('t-hint'),
+    pill: $('h-pill'), pkmh: $('h-pkmh'), pavg: $('h-pavg'), pgrade: $('h-pgrade'),
+    mode: $('m-mode'), seg: $('m-seg'), modeDesc: $('m-modedesc'), goMode: $('go-mode'),
+    recInf: $('rec-inf'), recInfDist: $('rec-infdist'), recInfAvg: $('rec-infavg'), recInfAvgW: $('rec-infavgw'),
     toasts: $('toasts'), zb: $('zone-banner'), zbBand: $('zb-band'), zbText: $('zb-text'), zbNum: $('zb-num'), zbName: $('zb-name'),
     cd: $('countdown'), cdTxt: $('cd-txt'), flash: $('flash'),
   };
   const muteVals = Array.from(root.querySelectorAll('[data-act="mute"] .v'));
   const qualVals = Array.from(root.querySelectorAll('[data-act="quality"] .v'));
+  const hapVals = Array.from(root.querySelectorAll('[data-act="haptics"] .v'));
+  const fsVals = Array.from(root.querySelectorAll('[data-act="fullscreen"] .v'));
+  const muteBtns = Array.from(root.querySelectorAll('[data-act="mute"]'));
+  const hapBtns = Array.from(root.querySelectorAll('[data-act="haptics"]'));
+  const fsBtns = Array.from(root.querySelectorAll('[data-act="fullscreen"]'));
 
   // ------------------------------------------------------------ events
   const handlers = Object.create(null);
@@ -273,7 +290,7 @@ export function createUI() {
   const C = {
     dist: -1, rec: -2, prog: -1, beaten: null, kmh: -1, avg: -1, grade: '', trend: 9, avgProg: -1,
     avgMark: -1, markOn: null, lives: -2, maxLives: -1, turbo: -1, full: null, boost: null, coins: -1,
-    time: -1, zoneNum: undefined, zoneName: undefined, mult: -1, load: -1,
+    time: -1, zoneNum: undefined, zoneName: undefined, mult: -1, load: -1, inf: false,
   };
 
   // ------------------------------------------------------------ speedometer (canvas)
@@ -408,6 +425,7 @@ export function createUI() {
     const el = E.screens[name];
     if (!el || name === screen) return;
     const prevEl = E.screens[screen];
+    if (name === 'hud' && (screen === 'menu' || screen === 'gameover')) newRun();
     if (prevEl) prevEl.classList.remove('on');
     el.classList.add('on');
     root.classList.remove('scr-' + screen);
@@ -536,12 +554,82 @@ export function createUI() {
     E.recGrade.hidden = !(avgRaw > 0);
     E.recTop.textContent = String(Math.round(num(r.bestTopKmh)));
     E.recRuns.textContent = fmtInt(num(r.runs));
+    // infinite-lives records live on their own line (shown once there is one)
+    const infD = num(r.infBestDistance);
+    if (E.recInf) {
+      E.recInf.hidden = !(infD > 0);
+      if (infD > 0) {
+        E.recInfDist.textContent = fmtInt(infD);
+        const infA = Math.floor(num(r.infBestAvgKmh));
+        E.recInfAvg.textContent = String(infA);
+        // runs under 150 m set no average: no "média 0 km/h"
+        if (E.recInfAvgW) E.recInfAvgW.hidden = !(infA > 0);
+      }
+    }
   }
 
   function setMuted(b) {
     muted = !!b;
     for (let i = 0; i < muteVals.length; i++) muteVals[i].textContent = muted ? 'DESLIGADO' : 'LIGADO';
+    for (let i = 0; i < muteBtns.length; i++) muteBtns[i].classList.toggle('off', muted);
     root.classList.toggle('is-muted', muted);
+  }
+  /** VIBRAÇÃO toggle state (main owns the setting and the actual buzzing; the touch buttons tick when on). */
+  function setHaptics(b) {
+    hapticsOn = !!b;
+    for (let i = 0; i < hapVals.length; i++) hapVals[i].textContent = hapticsOn ? 'LIGADA' : 'DESLIGADA';
+    for (let i = 0; i < hapBtns.length; i++) hapBtns[i].classList.toggle('off', !hapticsOn);
+  }
+  // TELA CHEIA: only where the page may go fullscreen (not iPhone Safari); the label follows the real state.
+  const fsOK = !!doc.fullscreenEnabled;
+  function syncFullscreen() {
+    const on = !!doc.fullscreenElement;
+    root.classList.toggle('fs-on', on);
+    for (let i = 0; i < fsVals.length; i++) fsVals[i].textContent = on ? 'SAIR DA TELA CHEIA' : 'TELA CHEIA';
+    rectsDirty = true;
+  }
+  for (let i = 0; i < fsBtns.length; i++) fsBtns[i].hidden = !fsOK;
+  if (fsOK) doc.addEventListener('fullscreenchange', syncFullscreen);
+  // VIBRAÇÃO only where vibration exists (Android); CSS also hides it until a touch screen is in use
+  for (let i = 0; i < hapBtns.length; i++) hapBtns[i].hidden = typeof navigator.vibrate !== 'function';
+
+  // ------------------------------------------------------------ game mode toggle (menu, above JOGAR)
+  let modeSel = '';
+  let segBtns = [];
+  {
+    let html = '';
+    const order = Array.isArray(MODE_ORDER) ? MODE_ORDER : [];
+    for (let i = 0; i < order.length; i++) {
+      const m = MODES && MODES[order[i]];
+      if (!m) continue;
+      html += '<button type="button" class="seg-b seg-' + esc(m.id || order[i]) + '" data-mode="' + esc(order[i]) + '" aria-pressed="false">' +
+        (MODE_ICONS[order[i]] || '') + '<span>' + esc(m.name || order[i]) + '</span></button>';
+    }
+    if (E.seg) {
+      E.seg.innerHTML = html;
+      segBtns = Array.from(E.seg.children);
+    }
+    if (E.mode) E.mode.hidden = segBtns.length < 2;
+  }
+  /** ui.setMode(id): highlight the mode and show its one-line description. */
+  function setMode(id) {
+    if (!MODES || !MODES[id]) return;
+    modeSel = id;
+    for (let i = 0; i < segBtns.length; i++) {
+      const on = segBtns[i].getAttribute('data-mode') === id;
+      segBtns[i].classList.toggle('sel', on);
+      segBtns[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+    if (E.modeDesc) E.modeDesc.textContent = MODES[id].desc || '';
+    root.classList.toggle('mode-inf', id === 'infinite');
+  }
+  function pickMode(btn) {
+    const id = btn.getAttribute('data-mode');
+    if (!MODES || !MODES[id]) return;
+    if (id === modeSel) { anim(btn, KF_NUDGE, OPT_NUDGE); return; }
+    setMode(id);
+    anim(btn.firstElementChild, KF_POP, OPT_POP);
+    emit('mode', id);
   }
   function setQuality(q) {
     quality = q === 'low' ? 'low' : 'high';
@@ -689,7 +777,13 @@ export function createUI() {
     // speed (gauge canvas redraws only when the integer km/h changes)
     const speedRaw = h.speedKmh > 0 ? h.speedKmh : 0;
     const kmh = Math.round(speedRaw);
-    if (kmh !== C.kmh) { C.kmh = kmh; E.kmh.textContent = String(kmh); drawGauge(kmh); }
+    if (kmh !== C.kmh) {
+      C.kmh = kmh;
+      const ks = String(kmh);
+      E.kmh.textContent = ks;
+      E.pkmh.textContent = ks;
+      if (!compact) drawGauge(kmh); // compact HUD shows the pill instead of the gauge
+    }
 
     // live average + grade
     const avgRaw = h.avgKmh > 0 ? h.avgKmh : 0;
@@ -697,15 +791,20 @@ export function createUI() {
     if (avg !== C.avg) {
       C.avg = avg;
       E.avg.textContent = String(avg);
+      E.pavg.textContent = String(avg);
       const g = gradeFor(avg);
       if (g !== C.grade) {
         const prevG = C.grade;
         C.grade = g;
         E.grade.textContent = g;
+        E.pgrade.textContent = g;
         setGradeClass(E.speed, g);
+        setGradeClass(E.pill, g);
         if (prevG) {
-          if ((GRADE_RANK[g] || 0) > (GRADE_RANK[prevG] || 0)) anim(E.grade, KF_GRADE_UP, OPT_GRADE);
-          else anim(E.grade, KF_NUDGE, OPT_NUDGE);
+          const up = (GRADE_RANK[g] || 0) > (GRADE_RANK[prevG] || 0);
+          const ge = compact ? E.pgrade : E.grade;
+          if (up) anim(ge, KF_GRADE_UP, OPT_GRADE);
+          else anim(ge, KF_NUDGE, OPT_NUDGE);
         }
       }
       // progress through the current grade band toward the next letter
@@ -727,13 +826,23 @@ export function createUI() {
     }
     if (tr !== C.trend) { C.trend = tr; E.trend.className = tr > 0 ? 'trend up' : tr < 0 ? 'trend down' : 'trend'; }
 
-    // lives
+    // lives (infinite mode: one ∞ badge instead of the hearts, no pops)
+    const inf = !!h.infinite;
+    if (inf !== C.inf) {
+      C.inf = inf;
+      E.lives.classList.toggle('inf', inf);
+      E.lives.classList.remove('danger');
+      E.lives.setAttribute('aria-label', inf ? 'Vidas infinitas' : 'Vidas');
+      if (inf) { E.lives.innerHTML = '<i class="inf-badge">' + INF_SVG + '</i>'; hearts = []; }
+      C.maxLives = -1; // rebuild the hearts (silently) when back to normal
+      C.lives = -2;
+    }
     const ml = num(h.maxLives) | 0, lv = num(h.lives) | 0;
     // main grows the row with the lives (maxLives = max(3, lives)): keep the previous count
     // across the rebuild so an earned heart still pops in
-    const rebuilt = ml !== C.maxLives;
+    const rebuilt = !inf && ml !== C.maxLives;
     if (rebuilt) { C.maxLives = ml; buildHearts(ml); }
-    if (lv !== C.lives || rebuilt) {
+    if (!inf && (lv !== C.lives || rebuilt)) {
       const prev = C.lives;
       C.lives = lv;
       for (let i = 0; i < hearts.length; i++) hearts[i].classList.toggle('lost', i >= lv);
@@ -758,6 +867,7 @@ export function createUI() {
       C.boost = bo;
       E.turbo.classList.toggle('boost', bo);
       E.speed.classList.toggle('boost', bo);
+      E.pill.classList.toggle('boost', bo);
       E.tBoost.classList.toggle('boost', bo);
     }
 
@@ -809,7 +919,7 @@ export function createUI() {
     el.style.setProperty('--tilt', (toastN++ & 1 ? 1.5 : -1.5) + 'deg');
     el.addEventListener('animationend', onToastEnd);
     E.toasts.insertBefore(el, E.toasts.firstChild);
-    while (E.toasts.childElementCount > 3) E.toasts.lastElementChild.remove();
+    while (E.toasts.childElementCount > (compact ? 2 : 3)) E.toasts.lastElementChild.remove();
     setTimeout(removeToast, kind === 'record' ? 3300 : 2500, el); // fallback if animations never run
   }
   function toast(text, kind) {
@@ -1105,6 +1215,7 @@ export function createUI() {
     const vname = s.vehicleName || (vehicles[selIdx] && vehicles[selIdx].name) || '';
     E.goVeh.textContent = vname;
     E.goVeh.hidden = !vname;
+    if (E.goMode) E.goMode.hidden = s.mode !== 'infinite';
 
     let recHtml = '';
     if (s.isNewRecord) {
@@ -1182,107 +1293,271 @@ export function createUI() {
     }
   }
 
-  // ------------------------------------------------------------ touch controls
-  const touch = { steer: 0, throttle: false, brake: false, jump: false, boost: false, flip: false, spin: false };
-  const TKEYS = ['left', 'right', 'jump', 'boost', 'brake', 'flip', 'spin'];
-  const tBtn = Object.create(null), tCount = Object.create(null), tOn = Object.create(null), tRect = Object.create(null);
+  // ------------------------------------------------------------ touch controls (v3)
+  // Floating joystick (left ~44% of the screen), action buttons (right) and camera drag (any other
+  // touch on the right). One pointerdown listener on the layer routes each finger by where it lands;
+  // pointer capture + window listeners follow it. main reads ui.touch every frame (no auto-throttle).
+  const touch = { steer: 0, throttle: 0, brake: 0, jump: false, boost: false, flip: false, spin: false };
+  const TKEYS = ['jump', 'boost', 'flip', 'spin'];
+  const STICK_ZONE = 0.44; // left share of the screen that spawns the joystick
+  const DZ_X = 0.12, DZ_Y = 0.15; // dead zones (fraction of the radius)
+  const FULL_X = 0.95, FULL_Y = 0.85; // deflection that already gives full steer / throttle / brake
+  const FOLLOW = 1.5; // the base trails a thumb that strays further than this (x radius)
+  const HIT_PAD = 10; // px of forgiveness around the round buttons
+  const tBtn = Object.create(null), tCount = Object.create(null), tOn = Object.create(null), tHit = Object.create(null);
   E.touch.querySelectorAll('[data-k]').forEach((el) => { tBtn[el.getAttribute('data-k')] = el; });
   for (let i = 0; i < TKEYS.length; i++) {
     const k = TKEYS[i];
     tCount[k] = 0;
     tOn[k] = false;
-    tRect[k] = [0, 0, 0, 0];
+    tHit[k] = [0, 0, 0]; // cx, cy, r (client px)
   }
-  const tPtr = new Map(); // pointerId -> key ('' while the finger is off every button)
+  const tPtr = new Map(); // pointerId -> { kind: 'btn' | 'stick' | 'cam' | 'none', key, x, y }
   let rectsDirty = true;
+  const stick = { id: -1, bx: 0, by: 0, hx: 0, hy: 0, r: 56, thr: false, brk: false };
+  let camId = -1, camDx = 0, camDy = 0;
+  const camOut = { dx: 0, dy: 0 };
+  let hapticsOn = true;
+  const gameEl = $('game');
 
-  // Button rects are cached (re-read on show/resize) so pointermove never forces layout.
+  // Hit circles + the joystick's home spot are cached (re-read on show/resize) so pointermove never forces layout.
   function cacheRects() {
     rectsDirty = false;
     for (let i = 0; i < TKEYS.length; i++) {
-      const k = TKEYS[i], el = tBtn[k], r = tRect[k];
-      if (!el) { r[0] = r[1] = r[2] = r[3] = 0; continue; }
+      const k = TKEYS[i], el = tBtn[k], h = tHit[k];
+      if (!el) { h[2] = 0; continue; }
       const b = el.getBoundingClientRect();
-      r[0] = b.left - 10; r[1] = b.top - 10; r[2] = b.right + 10; r[3] = b.bottom + 10;
+      h[0] = (b.left + b.right) * 0.5;
+      h[1] = (b.top + b.bottom) * 0.5;
+      h[2] = Math.max(b.width, b.height) * (el.classList.contains('on') ? 0.5 / 0.9 : 0.5); // undo the pressed scale
+    }
+    // layout box (ignores the transform of an active / returning stick)
+    const s = E.stick;
+    if (s && s.offsetWidth) {
+      stick.r = s.offsetWidth * 0.5;
+      stick.hx = s.offsetLeft + stick.r;
+      stick.hy = s.offsetTop + s.offsetHeight * 0.5;
     }
   }
   function hitKey(x, y) {
-    let best = '', bd = Infinity;
+    let best = '', bs = Infinity;
     for (let i = 0; i < TKEYS.length; i++) {
-      const k = TKEYS[i], r = tRect[k];
-      if (x < r[0] || x > r[2] || y < r[1] || y > r[3]) continue;
-      const dx = x - (r[0] + r[2]) * 0.5, dy = y - (r[1] + r[3]) * 0.5, d = dx * dx + dy * dy;
-      if (d < bd) { bd = d; best = k; }
+      const k = TKEYS[i], h = tHit[k];
+      if (h[2] <= 0) continue;
+      const dx = x - h[0], dy = y - h[1], d = Math.sqrt(dx * dx + dy * dy);
+      if (d > h[2] + HIT_PAD) continue;
+      const score = d / h[2]; // relative distance: the nearer button wins where the pads overlap
+      if (score < bs) { bs = score; best = k; }
     }
     return best;
   }
-  function syncTouch() {
-    const l = tCount.left > 0, r = tCount.right > 0;
-    touch.steer = (r ? 1 : 0) - (l ? 1 : 0);
-    touch.jump = tCount.jump > 0;
-    touch.boost = tCount.boost > 0;
-    touch.brake = tCount.brake > 0;
-    touch.flip = tCount.flip > 0;
-    touch.spin = tCount.spin > 0;
+  // A tap shorter than one frame would be released before main polls ui.touch (lost jump / flip on a
+  // 30 fps phone): every press is reported for at least MIN_HOLD ms. The button art still releases at once.
+  const MIN_HOLD = 70;
+  const tDownAt = Object.create(null);
+  let holdTimer = 0;
+  function releaseHeld() { holdTimer = 0; syncButtons(false); }
+  function syncButtons(force) {
+    const now = performance.now();
+    let wait = 0;
     for (let i = 0; i < TKEYS.length; i++) {
       const k = TKEYS[i], isOn = tCount[k] > 0;
+      if (isOn && !touch[k]) tDownAt[k] = now;
+      const left = isOn || force ? 0 : MIN_HOLD - (now - (tDownAt[k] || 0));
+      touch[k] = isOn || (touch[k] && left > 0);
+      if (!isOn && touch[k] && left > wait) wait = left;
       if (isOn !== tOn[k]) {
         tOn[k] = isOn;
         if (tBtn[k]) tBtn[k].classList.toggle('on', isOn);
       }
     }
+    if (force && holdTimer) { clearTimeout(holdTimer); holdTimer = 0; }
+    if (wait > 0 && !holdTimer) holdTimer = setTimeout(releaseHeld, wait + 1);
   }
-  function setPtr(id, k) {
-    const old = tPtr.has(id) ? tPtr.get(id) : '';
-    tPtr.set(id, k);
-    if (old === k) return;
-    if (old) tCount[old]--;
+  function setKey(p, k) {
+    if (p.key === k) return;
+    if (p.key) tCount[p.key]--;
     if (k) tCount[k]++;
-    syncTouch();
+    p.key = k;
+    syncButtons();
   }
+
+  // --- joystick
+  const HINT_KEY = 'bobobike.stickHint';
+  let hintRuns = 0;
+  try { hintRuns = parseInt(localStorage.getItem(HINT_KEY) || '0', 10) || 0; } catch (_) { /* storage blocked */ }
+  let stickUsedRun = false;
+  function newRun() {
+    stickUsedRun = false;
+    if (E.tHint) E.tHint.hidden = hintRuns >= 2; // "ARRASTE" over the ghost stick for the first 2 runs
+  }
+  function placeBase() {
+    E.stick.style.transform = 'translate3d(' + (stick.bx - stick.hx).toFixed(1) + 'px,' + (stick.by - stick.hy).toFixed(1) + 'px,0)';
+  }
+  function stickApply(dx, dy) {
+    const R = stick.r;
+    // knob stays on the ring
+    const d = Math.sqrt(dx * dx + dy * dy);
+    const kk = d > R ? R / d : 1;
+    E.knob.style.transform = 'translate3d(' + (dx * kk).toFixed(1) + 'px,' + (dy * kk).toFixed(1) + 'px,0)';
+    // axes are read independently (square gate): up-right gives full throttle AND full steer
+    const nx = dx / R, ny = dy / R;
+    const ax = nx < 0 ? -nx : nx;
+    let s = ax <= DZ_X ? 0 : Math.min(1, (ax - DZ_X) / (FULL_X - DZ_X));
+    s *= 0.6 + 0.4 * s; // slight curve: finer control near the center
+    touch.steer = nx < 0 ? -s : s;
+    const up = -ny;
+    touch.throttle = up > DZ_Y ? Math.min(1, (up - DZ_Y) / (FULL_Y - DZ_Y)) : 0;
+    touch.brake = -up > DZ_Y ? Math.min(1, (-up - DZ_Y) / (FULL_Y - DZ_Y)) : 0;
+    const thr = touch.throttle > 0, brk = touch.brake > 0;
+    if (thr !== stick.thr) { stick.thr = thr; E.stick.classList.toggle('thr', thr); }
+    if (brk !== stick.brk) { stick.brk = brk; E.stick.classList.toggle('brk', brk); }
+  }
+  function stickStart(id, x, y) {
+    stick.id = id;
+    stick.bx = x;
+    stick.by = y;
+    E.stick.classList.remove('idle');
+    placeBase();
+    stickApply(0, 0);
+    if (!stickUsedRun) {
+      stickUsedRun = true;
+      hintRuns++;
+      try { localStorage.setItem(HINT_KEY, String(hintRuns)); } catch (_) { /* ignore */ }
+    }
+  }
+  function stickMove(x, y) {
+    let dx = x - stick.bx, dy = y - stick.by;
+    const lim = stick.r * FOLLOW, d = Math.sqrt(dx * dx + dy * dy);
+    if (d > lim) {
+      // drag the base along so reversing direction never needs a long trip back
+      const f = (d - lim) / d;
+      stick.bx += dx * f;
+      stick.by += dy * f;
+      dx -= dx * f;
+      dy -= dy * f;
+      placeBase();
+    }
+    stickApply(dx, dy);
+  }
+  function stickEnd() {
+    stick.id = -1;
+    touch.steer = 0;
+    touch.throttle = 0;
+    touch.brake = 0;
+    E.stick.classList.add('idle'); // glides back home
+    E.stick.style.transform = '';
+    E.knob.style.transform = '';
+    if (stick.thr) { stick.thr = false; E.stick.classList.remove('thr'); }
+    if (stick.brk) { stick.brk = false; E.stick.classList.remove('brk'); }
+  }
+
+  // --- pointer routing
+  function onTouchDown(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return; // right-drag camera belongs to main
+    e.preventDefault();
+    if (rectsDirty) cacheRects();
+    const id = e.pointerId, x = e.clientX, y = e.clientY;
+    if (tPtr.has(id)) endPointer(id);
+    const p = { kind: 'none', key: '', x, y };
+    const k = hitKey(x, y);
+    if (k) {
+      p.kind = 'btn';
+      setKey(p, k);
+      const ua = navigator.userActivation;
+      if (hapticsOn && navigator.vibrate && e.isTrusted && (!ua || ua.hasBeenActive)) {
+        try { navigator.vibrate(8); } catch (_) { /* ignore */ }
+      }
+    } else if (x < lastW * STICK_ZONE) { // cached width: window.innerWidth may force a layout
+      if (stick.id === -1) { p.kind = 'stick'; stickStart(id, x, y); }
+    } else if (camId === -1) {
+      p.kind = 'cam';
+      camId = id;
+    }
+    tPtr.set(id, p);
+    try { E.touch.setPointerCapture(id); } catch (_) { /* pointer already gone */ }
+  }
+  function onPtrMove(e) {
+    const p = tPtr.get(e.pointerId);
+    if (!p) return;
+    const x = e.clientX, y = e.clientY;
+    if (p.kind === 'stick') stickMove(x, y);
+    else if (p.kind === 'cam') { camDx += x - p.x; camDy += y - p.y; }
+    else if (p.kind === 'btn') setKey(p, hitKey(x, y)); // fingers may slide between buttons (PULO -> MORTAL)
+    p.x = x;
+    p.y = y;
+  }
+  function endPointer(id) {
+    const p = tPtr.get(id);
+    if (!p) return;
+    tPtr.delete(id);
+    if (p.kind === 'btn') setKey(p, '');
+    else if (p.kind === 'stick' && stick.id === id) stickEnd();
+    else if (p.kind === 'cam' && camId === id) camId = -1;
+  }
+  const onPtrEnd = (e) => endPointer(e.pointerId);
   function clearTouch() {
     tPtr.clear();
     for (let i = 0; i < TKEYS.length; i++) tCount[TKEYS[i]] = 0;
-    syncTouch();
+    syncButtons(true); // everything to false right now (no tap hold-over into pause / background)
+    stickEnd();
+    camId = -1;
+    camDx = camDy = 0;
   }
-  E.touch.addEventListener('pointerdown', (e) => {
-    const b = e.target && e.target.closest ? e.target.closest('[data-k]') : null;
-    if (!b) return;
-    e.preventDefault();
-    if (rectsDirty) cacheRects();
-    const k = b.getAttribute('data-k');
-    setPtr(e.pointerId, k);
-    const ua = navigator.userActivation;
-    if (k !== 'left' && k !== 'right' && k !== 'brake' && navigator.vibrate && e.isTrusted && (!ua || ua.hasBeenActive)) {
-      try { navigator.vibrate(8); } catch (_) { /* ignore */ }
-    }
-  });
-  // Fingers may slide between buttons (e.g. ◀ to ▶) without lifting.
-  window.addEventListener('pointermove', (e) => {
-    if (!tPtr.has(e.pointerId)) return;
-    setPtr(e.pointerId, hitKey(e.clientX, e.clientY));
+  /** Camera orbit from touch drags, in CSS px accumulated since the previous call (main calls it every frame). */
+  function consumeCameraDrag() {
+    camOut.dx = camDx;
+    camOut.dy = camDy;
+    camDx = camDy = 0;
+    return camOut;
+  }
+
+  E.touch.addEventListener('pointerdown', onTouchDown);
+  window.addEventListener('pointermove', onPtrMove, { passive: true });
+  window.addEventListener('pointerup', onPtrEnd);
+  window.addEventListener('pointercancel', onPtrEnd);
+  E.touch.addEventListener('lostpointercapture', onPtrEnd);
+  // menu: dragging the 3D scene behind the menu spins the vehicle preview
+  window.addEventListener('pointerdown', (e) => {
+    if (screen !== 'menu' || e.pointerType !== 'touch' || camId !== -1 || !gameEl || !gameEl.contains(e.target)) return;
+    camId = e.pointerId;
+    tPtr.set(camId, { kind: 'cam', key: '', x: e.clientX, y: e.clientY });
   }, { passive: true });
-  const endPtr = (e) => {
-    if (!tPtr.has(e.pointerId)) return;
-    setPtr(e.pointerId, '');
-    tPtr.delete(e.pointerId);
-  };
-  window.addEventListener('pointerup', endPtr);
-  window.addEventListener('pointercancel', endPtr);
-  // long-press menu on the on-screen buttons only (never stopPropagation: main's right-drag camera listens on window)
-  E.touch.addEventListener('contextmenu', (e) => {
-    if (e.target && e.target.closest && e.target.closest('[data-k]')) e.preventDefault();
-  });
+  // no long-press menu / callout on the controls (never stopPropagation: main's right-drag camera listens on window)
+  E.touch.addEventListener('contextmenu', (e) => e.preventDefault());
   window.addEventListener('blur', clearTouch);
   doc.addEventListener('visibilitychange', () => { if (doc.hidden) clearTouch(); });
-  const markDirty = () => { rectsDirty = true; };
-  window.addEventListener('resize', markDirty, { passive: true });
-  window.addEventListener('orientationchange', markDirty, { passive: true });
+  // URL-bar show/hide only changes the height: keep the stick; a real rotation resets everything
+  let lastW = window.innerWidth;
+  window.addEventListener('resize', () => {
+    rectsDirty = true;
+    if (window.innerWidth !== lastW) { lastW = window.innerWidth; clearTouch(); }
+  }, { passive: true });
+  const onRotate = () => { rectsDirty = true; clearTouch(); };
+  window.addEventListener('orientationchange', onRotate, { passive: true });
+  try { if (window.screen && screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', onRotate); } catch (_) { /* ignore */ }
+
+  // Compact HUD (speed pill, no gauge / zone pill / turbo bar): touch play, or short / narrow screens.
+  const MQ_COMPACT = typeof window.matchMedia === 'function' ? window.matchMedia('(max-height: 520px), (max-width: 760px)') : null;
+  let compact = false;
+  function updateCompact() {
+    const c = touchEnabled || !!(MQ_COMPACT && MQ_COMPACT.matches);
+    if (c === compact) return;
+    compact = c;
+    root.classList.toggle('compact', c);
+    if (!c) drawGauge(C.kmh > 0 ? C.kmh : 0); // the gauge skips redraws while hidden
+    rectsDirty = true;
+  }
+  if (MQ_COMPACT) {
+    if (typeof MQ_COMPACT.addEventListener === 'function') MQ_COMPACT.addEventListener('change', updateCompact);
+    else if (typeof MQ_COMPACT.addListener === 'function') MQ_COMPACT.addListener(updateCompact);
+  }
 
   function setTouch(enabled) {
     touchEnabled = !!enabled;
     root.classList.toggle('is-touch', touchEnabled);
     rectsDirty = true;
+    updateCompact();
     if (touchEnabled) setHintTouch(true);
     else clearTouch();
   }
@@ -1309,6 +1584,13 @@ export function createUI() {
       pickSkin(chip);
       return;
     }
+    const seg = t.closest('.seg-b');
+    if (seg) {
+      if (e.detail > 0 && typeof seg.blur === 'function') seg.blur();
+      sfx('click');
+      pickMode(seg);
+      return;
+    }
     const card = t.closest('.vcard');
     const btn = card || t.closest('[data-act]');
     if (!btn) return;
@@ -1325,6 +1607,9 @@ export function createUI() {
       case 'next': cycleVehicle(1); break;
       case 'mute': setMuted(!muted); emit('mute', muted); break;
       case 'quality': setQuality(quality === 'high' ? 'low' : 'high'); emit('quality', quality); break;
+      case 'end': emit('end'); break;
+      case 'haptics': setHaptics(!hapticsOn); emit('haptics', hapticsOn); break;
+      case 'fullscreen': emit('fullscreen'); break; // main calls requestFullscreen inside this click
       default: break;
     }
   });
@@ -1384,6 +1669,11 @@ export function createUI() {
   buildHearts(C.maxLives);
   setMuted(false);
   setQuality('high');
+  setHaptics(true);
+  if (MODE_ORDER && MODE_ORDER[0]) setMode(MODE_ORDER[0]);
+  if (fsOK) syncFullscreen();
+  newRun();
+  updateCompact();
 
   return {
     showScreen,
@@ -1402,6 +1692,9 @@ export function createUI() {
     setQuality,
     setTouch,
     touch,
+    consumeCameraDrag,
+    setMode,
+    setHaptics,
     setLoading,
   };
 }

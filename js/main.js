@@ -4,7 +4,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { CONFIG, VEHICLE_STATS, VEHICLE_ORDER, SKINS, SKIN_BY_ID, gradeFor } from './config.js';
+import { CONFIG, VEHICLE_STATS, VEHICLE_ORDER, SKINS, SKIN_BY_ID, MODES, gradeFor } from './config.js';
 import { zoneAt } from './themes.js';
 import { createTrack } from './track.js';
 import { createPlayer } from './player.js';
@@ -24,13 +24,20 @@ const lerpAngle = (a, b, t) => {
 };
 
 // ------------------------------------------------------------ persistence
-const store = { bestDistance: 0, bestAvgKmh: 0, bestTopKmh: 0, runs: 0, vehicle: 'bike', skin: 'noob', muted: false, quality: null };
+const store = {
+  bestDistance: 0, bestAvgKmh: 0, bestTopKmh: 0, runs: 0, infBestDistance: 0, infBestAvgKmh: 0,
+  vehicle: 'bike', skin: 'noob', mode: 'normal', muted: false, haptics: true, quality: null,
+};
 try { Object.assign(store, JSON.parse(localStorage.getItem(CONFIG.storageKey) || '{}')); } catch (e) { /* storage blocked */ }
 function save() { try { localStorage.setItem(CONFIG.storageKey, JSON.stringify(store)); } catch (e) { /* ignore */ } }
 // corrupt/old saves: a NaN record would block every future record ("x > NaN" is always false)
-for (const k of ['bestDistance', 'bestAvgKmh', 'bestTopKmh', 'runs']) { const v = +store[k]; store[k] = Number.isFinite(v) && v > 0 ? v : 0; }
+for (const k of ['bestDistance', 'bestAvgKmh', 'bestTopKmh', 'runs', 'infBestDistance', 'infBestAvgKmh']) { const v = +store[k]; store[k] = Number.isFinite(v) && v > 0 ? v : 0; }
 if (store.quality !== 'high' && store.quality !== 'low') store.quality = null;
 if (!Object.prototype.hasOwnProperty.call(VEHICLE_STATS, store.vehicle)) store.vehicle = 'bike';
+if (!Object.prototype.hasOwnProperty.call(MODES, store.mode)) store.mode = 'normal';
+store.haptics = store.haptics !== false;
+// best distance of the mode being played (infinite runs keep separate records)
+const modeRecord = (mode) => (mode === 'infinite' ? store.infBestDistance : store.bestDistance);
 if (!Object.prototype.hasOwnProperty.call(SKIN_BY_ID, store.skin)) store.skin = 'noob';
 const skinUnlocked = (sk) => !!sk && store.bestDistance >= sk.unlock;
 if (!skinUnlocked(SKIN_BY_ID[store.skin])) store.skin = 'noob';
@@ -75,7 +82,7 @@ ui.setLoading(0.4);
 const runState = {
   time: 0, coins: 0, tricks: 0, falls: 0, checkpoints: 0, topSpeed: 0,
   samples: [], nextSample: 10, recordBeaten: false, lives: CONFIG.startLives,
-  deadTimer: 0, cd: 0, cdShown: 0, zoneShown: 0, recordAtStart: 0, skinToasts: new Set(),
+  deadTimer: 0, cd: 0, cdShown: 0, zoneShown: 0, recordAtStart: 0, skinToasts: new Set(), mode: 'normal',
 };
 
 player = createPlayer(track, onPlayerEvent);
@@ -89,7 +96,8 @@ function applyQuality() {
   track.setShadows(high);
   env.setQuality(quality);
   fx.setQuality(quality);
-  maxPR = high ? Math.min(window.devicePixelRatio || 1, 1.6) : Math.min(window.devicePixelRatio || 1, 1);
+  // phones have dense screens: 1.0 looks blurry there, so low quality allows a little more on touch devices
+  maxPR = high ? Math.min(window.devicePixelRatio || 1, 1.6) : Math.min(window.devicePixelRatio || 1, coarse ? 1.3 : 1);
   pixelRatio = maxPR;
   prCeil = maxPR;
   renderer.setPixelRatio(pixelRatio);
@@ -115,6 +123,11 @@ function onResize() {
   if (composer) { composer.setPixelRatio(pixelRatio); composer.setSize(w, h); }
 }
 window.addEventListener('resize', onResize);
+// some phones report the new size only after the rotation animation
+window.addEventListener('orientationchange', () => setTimeout(onResize, 250));
+// iOS Safari: no pinch-zoom / double-tap zoom while playing
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 
 function setVehicle(id) {
   if (rig) { scene.remove(rig.group); rig.dispose(); }
@@ -207,8 +220,9 @@ function readInput() {
   let spin = k.has('KeyE');
   if (touchMode) {
     const t = ui.touch;
-    steer += t.steer || 0;
-    if (t.brake) brake = 1; else throttle = 1;
+    steer += +t.steer || 0;
+    throttle = Math.max(throttle, clamp(+t.throttle || 0, 0, 1));
+    brake = Math.max(brake, clamp(+t.brake || 0, 0, 1));
     boost = boost || !!t.boost;
     flip = flip || !!t.flip;
     spin = spin || !!t.spin;
@@ -243,12 +257,56 @@ function readInput() {
     if (ps && !prevPadStart) { if (state === 'paused') resume(); else pause(); }
     prevPadStart = ps;
   }
+  if (ui.consumeCameraDrag) {
+    const d = ui.consumeCameraDrag();
+    if (d && (d.dx || d.dy)) {
+      lastOrbitInput = wallTime;
+      if (state === 'menu') orbitA -= d.dx * 0.008;
+      else {
+        orbitYaw -= d.dx * 0.008;
+        if (orbitYaw > Math.PI) orbitYaw -= TAU; else if (orbitYaw < -Math.PI) orbitYaw += TAU;
+        orbitPitch = clamp(orbitPitch + d.dy * 0.005, -0.45, 0.9);
+      }
+    }
+  }
   input.steer = clamp(steer, -1, 1);
   input.throttle = throttle;
   input.brake = brake;
   input.boost = boost;
   input.flip = flip;
   input.spin = spin;
+}
+
+// ------------------------------------------------------------ phone helpers
+// Vibration only on touch devices (navigator.vibrate is a no-op elsewhere / on iOS).
+function buzz(pattern) {
+  if (!store.haptics || !touchMode || !navigator.vibrate) return;
+  try { navigator.vibrate(pattern); } catch (e) { /* ignore */ }
+}
+// Keep the screen awake while racing.
+let wakeLock = null, wakeWanted = false;
+async function setWake(on) {
+  wakeWanted = on;
+  try {
+    if (on && !wakeLock && navigator.wakeLock) {
+      const l = await navigator.wakeLock.request('screen');
+      if (!wakeWanted) { l.release(); return; }
+      wakeLock = l;
+      l.addEventListener('release', () => { if (wakeLock === l) wakeLock = null; });
+    } else if (!on && wakeLock) {
+      const l = wakeLock; wakeLock = null; await l.release();
+    }
+  } catch (e) { /* denied or unsupported */ }
+}
+async function toggleFullscreen() {
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+      try { await screen.orientation.lock('landscape'); } catch (e) { /* not allowed on this device */ }
+    } else {
+      await document.exitFullscreen();
+    }
+  } catch (e) { /* fullscreen refused */ }
 }
 
 // ------------------------------------------------------------ game state
@@ -275,7 +333,8 @@ function resetRunState() {
   Object.assign(runState, {
     time: 0, coins: 0, tricks: 0, falls: 0, checkpoints: 0, topSpeed: 0,
     samples: [], nextSample: 10, recordBeaten: false, lives: CONFIG.startLives,
-    deadTimer: 0, cd: 3.4, cdShown: 0, zoneShown: 0, recordAtStart: store.bestDistance, skinToasts: new Set(),
+    deadTimer: 0, cd: 3.4, cdShown: 0, zoneShown: 0, recordAtStart: modeRecord(store.mode), skinToasts: new Set(),
+    mode: store.mode,
   });
 }
 
@@ -293,7 +352,8 @@ function toMenu() {
   bankRun();
   runLive = false;
   state = 'menu';
-  track.reset(newSeed(), store.bestDistance);
+  setWake(false);
+  track.reset(newSeed(), modeRecord(store.mode));
   preparePlayer();
   fx.clear();
   ui.setTouch(false);
@@ -307,7 +367,7 @@ function startRun(newTrack) {
   bankRun();
   runLive = true;
   ftCount = 0; lowFpsTime = 0; // judge performance after the track-rebuild hitch has left the average
-  if (newTrack) track.reset(newSeed(), store.bestDistance);
+  if (newTrack) track.reset(newSeed(), modeRecord(store.mode));
   preparePlayer();
   resetRunState();
   fx.clear();
@@ -315,6 +375,7 @@ function startRun(newTrack) {
   ui.showScreen('hud');
   ui.setTouch(touchMode);
   state = 'countdown';
+  setWake(true);
   audio.startMusic();
   audio.setZone(0);
 }
@@ -326,12 +387,14 @@ function pause() {
   state = 'paused';
   keys.clear();
   ui.showScreen('pause');
+  setWake(false);
   bankRun(); // a backgrounded mobile tab may be killed while paused
 }
 function resume() {
   if (state !== 'paused') return;
   state = prevState;
   ui.showScreen('hud');
+  setWake(true);
 }
 
 function toggleMute() {
@@ -348,7 +411,10 @@ function toggleQuality(persist = true) {
 }
 
 function recordsForUI() {
-  return { bestDistance: store.bestDistance, bestAvgKmh: store.bestAvgKmh, bestTopKmh: store.bestTopKmh, runs: store.runs };
+  return {
+    bestDistance: store.bestDistance, bestAvgKmh: store.bestAvgKmh, bestTopKmh: store.bestTopKmh, runs: store.runs,
+    infBestDistance: store.infBestDistance, infBestAvgKmh: store.infBestAvgKmh,
+  };
 }
 
 const TRICK_NAMES = ['', 'MORTAL', 'MORTAL DUPLO', 'MORTAL TRIPLO'];
@@ -368,6 +434,7 @@ function onPlayerEvent(type, data) {
       break;
     case 'land':
       pendingImpact = Math.max(pendingImpact, data);
+      if (data > 0.45) buzz(Math.round(10 + data * 25));
       if (data > 0.12) {
         audio.play('land', { intensity: data });
         fx.burst('dust', pos, { intensity: data });
@@ -376,23 +443,27 @@ function onPlayerEvent(type, data) {
       break;
     case 'bonk':
       audio.play('land', { intensity: 1 });
+      buzz(35);
       fx.burst('sparks', tmpV.copy(pos).setY(pos.y + 0.8), { color: '#ffffff', count: 20 });
       shake = Math.max(shake, 0.6);
       break;
     case 'boostPad':
       audio.play('boost');
+      buzz(10);
       fx.burst('boost', pos);
       shake = Math.max(shake, 0.12);
       break;
     case 'jumpPad':
       audio.play('jumppad');
+      buzz(18);
       fx.burst('ring', pos, { color: '#7dff6b' });
       break;
     case 'checkpoint':
       if (data.cp > 0) {
         track.activateCheckpoint(data);
         runState.checkpoints++;
-        if (runState.checkpoints % CONFIG.lifeEveryCheckpoints === 0 && runState.lives < CONFIG.maxLives) {
+        buzz([15, 40, 25]);
+        if (runState.mode !== 'infinite' && runState.checkpoints % CONFIG.lifeEveryCheckpoints === 0 && runState.lives < CONFIG.maxLives) {
           runState.lives++;
           ui.toast('+1 VIDA!', 'good');
           audio.play('coin');
@@ -416,6 +487,7 @@ function onPlayerEvent(type, data) {
       ui.toast(trickName(data.flips, data.spins), 'trick');
       ui.toast(`+TURBO`, 'good');
       audio.play('trick', { level: Math.min(4, n) });
+      buzz(20);
       fx.burst('stars', tmpV.copy(pos).setY(pos.y + 1));
       break;
     }
@@ -435,7 +507,8 @@ function onDeath(reason) {
   state = 'dead';
   runState.deadTimer = 0;
   // R ("voltar ao checkpoint") is free: on the last life it used to end the run under a "VOLTANDO..." toast
-  if (reason !== 'reset') { runState.falls++; runState.lives--; }
+  if (reason !== 'reset') { runState.falls++; if (runState.mode !== 'infinite') runState.lives--; }
+  buzz([40, 30, 70]);
   deathPos.copy(player.pos);
   rig.breakApart(tmpV.copy(player.vel));
   audio.play('oof');
@@ -457,7 +530,7 @@ function respawn() {
   camYaw = player.yaw;
   state = 'play';
   audio.play('respawn');
-  ui.toast(runState.lives === 1 ? 'ÚLTIMA VIDA!' : `${runState.lives} VIDAS`, 'info');
+  if (runState.mode !== 'infinite') ui.toast(runState.lives === 1 ? 'ÚLTIMA VIDA!' : `${runState.lives} VIDAS`, 'info');
 }
 
 // A run that is abandoned (pause -> menu/restart) or whose tab is closed/killed while paused still
@@ -468,7 +541,9 @@ function bankRun() {
   if (!runLive) return;
   const top = runState.topSpeed * 3.6;
   let changed = false;
-  if (player.maxProgress > store.bestDistance) { store.bestDistance = player.maxProgress; changed = true; }
+  if (runState.mode === 'infinite') {
+    if (player.maxProgress > store.infBestDistance) { store.infBestDistance = player.maxProgress; changed = true; }
+  } else if (player.maxProgress > store.bestDistance) { store.bestDistance = player.maxProgress; changed = true; }
   if (top > store.bestTopKmh) { store.bestTopKmh = top; changed = true; }
   if (changed) save();
 }
@@ -484,10 +559,18 @@ function gameOver() {
   const prevRecord = runState.recordAtStart; // store.bestDistance may already hold this run's banked distance
   const isNewRecord = dist > prevRecord && dist > 1;
   const qualifiesAvg = dist >= 150;
-  const isNewAvg = qualifiesAvg && avgKmh > store.bestAvgKmh;
-  const unlockedSkins = SKINS.filter((sk) => sk.unlock > prevRecord && sk.unlock <= dist).map((sk) => sk.name);
-  if (dist > store.bestDistance) store.bestDistance = dist;
-  if (isNewAvg) store.bestAvgKmh = avgKmh;
+  const inf = runState.mode === 'infinite';
+  const bestAvgBefore = inf ? store.infBestAvgKmh : store.bestAvgKmh;
+  const isNewAvg = qualifiesAvg && avgKmh > bestAvgBefore;
+  // skins only unlock from normal-mode distance
+  const unlockedSkins = inf ? [] : SKINS.filter((sk) => sk.unlock > prevRecord && sk.unlock <= dist).map((sk) => sk.name);
+  if (inf) {
+    if (dist > store.infBestDistance) store.infBestDistance = dist;
+    if (isNewAvg) store.infBestAvgKmh = avgKmh;
+  } else {
+    if (dist > store.bestDistance) store.bestDistance = dist;
+    if (isNewAvg) store.bestAvgKmh = avgKmh;
+  }
   if (topKmh > store.bestTopKmh) store.bestTopKmh = topKmh;
   store.runs++;
   save();
@@ -500,9 +583,11 @@ function gameOver() {
   } else hint = 'Nota máxima! Agora é bater a distância.';
   if (!qualifiesAvg) hint = 'Corra pelo menos 150 m para valer recorde de média.';
   ui.setTouch(false);
+  setWake(false);
+  if (isNewRecord) buzz([30, 50, 30, 50, 60]);
   ui.showGameOver({
     distance: dist, record: isNewRecord ? dist : prevRecord, isNewRecord,
-    avgKmh, bestAvgKmh: store.bestAvgKmh, isNewAvgRecord: isNewAvg,
+    avgKmh, bestAvgKmh: inf ? store.infBestAvgKmh : store.bestAvgKmh, isNewAvgRecord: isNewAvg, mode: runState.mode,
     topKmh, time, tricks: runState.tricks, coins: runState.coins, falls: runState.falls,
     checkpoints: runState.checkpoints, grade, speedSamples: runState.samples.slice(),
     vehicleName: player.stats.name, nextGradeHint: hint, unlockedSkins,
@@ -541,6 +626,24 @@ ui.on('resume', () => resume());
 ui.on('pause', () => pause());
 ui.on('mute', () => { audio.unlock(); toggleMute(); });
 ui.on('quality', () => toggleQuality());
+if (ui.setMode) ui.setMode(store.mode);
+if (ui.setHaptics) ui.setHaptics(store.haptics);
+ui.on('mode', (id) => {
+  if (!Object.prototype.hasOwnProperty.call(MODES, id) || id === store.mode) return;
+  store.mode = id;
+  save();
+  if (ui.setMode) ui.setMode(id);
+  // the menu track carries the record gate of the selected mode
+  if (state === 'menu') { track.reset(newSeed(), modeRecord(id)); preparePlayer(); }
+});
+ui.on('end', () => { if (runLive && (state === 'paused' || state === 'play' || state === 'dead' || state === 'countdown')) gameOver(); });
+ui.on('haptics', (v) => {
+  store.haptics = typeof v === 'boolean' ? v : !store.haptics;
+  save();
+  if (ui.setHaptics) ui.setHaptics(store.haptics);
+  buzz(25);
+});
+ui.on('fullscreen', () => toggleFullscreen());
 
 // ------------------------------------------------------------ camera
 function updateCamera(dt, pos, yaw) {
@@ -571,7 +674,8 @@ function updateCamera(dt, pos, yaw) {
   } else {
     const k = state === 'countdown' ? 2.6 : 13;
     camYaw = lerpAngle(camYaw, yaw, 1 - Math.exp(-dt * (state === 'countdown' ? 3 : 5)));
-    const back = 5.6 + sp01 * 1.6, up = 2.75 + sp01 * 0.45;
+    const portrait = camera.aspect < 1 ? 1 - camera.aspect : 0;
+    const back = 5.6 + sp01 * 1.6 + portrait * 2.2, up = 2.75 + sp01 * 0.45 + portrait * 0.8;
     const dist = Math.hypot(back, up) * camZoom;
     const pitch = clamp(Math.atan2(up, back) + orbitPitch, -0.1, 1.35);
     const cy = camYaw + orbitYaw;
@@ -602,7 +706,7 @@ function updateCamera(dt, pos, yaw) {
     }
     camera.lookAt(camLook);
     camera.rotateZ(-player.steer * Math.min(1, sp01) * 0.045);
-    camFov = 68 + Math.min(1, sp01) * 13 + (player.boosting ? 7 : 0);
+    camFov = 68 + Math.min(1, sp01) * 13 + (player.boosting ? 7 : 0) + portrait * 26;
   }
   shake = Math.max(0, shake - dt * 1.6);
   const f = camera.fov + (camFov - camera.fov) * (1 - Math.exp(-dt * 4));
@@ -615,7 +719,7 @@ const fxCtx = { playerPos: new THREE.Vector3(), playerVel: new THREE.Vector3(), 
 const rigState = { speed: 0, steer: 0, throttle: 0, grounded: true, lean: 0, landImpact: 0, boosting: false, trickSpin: 0, trickFlip: 0, time: 0 };
 const hud = {
   distance: 0, record: 0, speedKmh: 0, avgKmh: 0, lives: 3, maxLives: CONFIG.startLives, turbo: 0, boosting: false,
-  coins: 0, time: 0, zoneNum: 1, zoneName: '', recordBeaten: false, multiplier: 1,
+  coins: 0, time: 0, zoneNum: 1, zoneName: '', recordBeaten: false, multiplier: 1, infinite: false,
 };
 
 let acc = 0;
@@ -688,13 +792,14 @@ function frame(now) {
     if (!runState.recordBeaten && runState.recordAtStart > 50 && player.maxProgress > runState.recordAtStart) {
       runState.recordBeaten = true;
       ui.toast('NOVO RECORDE!', 'record');
+      buzz([30, 50, 30]);
       audio.play('record');
       fx.burst('confetti', tmpV.copy(rPos).setY(rPos.y + 3), { count: 320 });
     }
     // live unlock notice when this run passes a skin's distance requirement
     for (let i = 0; i < SKINS.length; i++) {
       const sk = SKINS[i];
-      if (sk.unlock > runState.recordAtStart && sk.unlock <= player.maxProgress && !runState.skinToasts.has(sk.id)) {
+      if (runState.mode !== 'infinite' && sk.unlock > runState.recordAtStart && sk.unlock <= player.maxProgress && !runState.skinToasts.has(sk.id)) {
         runState.skinToasts.add(sk.id);
         ui.toast('SKIN DESBLOQUEADA: ' + sk.name.toUpperCase(), 'record');
         audio.play('trick', { level: 4 });
@@ -791,6 +896,7 @@ function frame(now) {
     hud.zoneNum = maxZone + 1;
     hud.zoneName = zoneAt(maxZone).name;
     hud.recordBeaten = runState.recordBeaten;
+    hud.infinite = runState.mode === 'infinite';
     ui.updateHUD(hud);
   }
 
@@ -834,7 +940,7 @@ async function boot() {
   ui.setLoading(0.6);
   applyQuality();
   setVehicle(store.vehicle);
-  track.reset(newSeed(), store.bestDistance);
+  track.reset(newSeed(), modeRecord(store.mode));
   preparePlayer();
   ui.setLoading(0.8);
   // warm up shaders before showing the menu

@@ -40,6 +40,13 @@ export const VEHICLE_STATS = {
 };
 export const VEHICLE_ORDER = ['bike', 'scooter', 'kick'];
 
+// Game modes. Infinite-lives runs keep their own records and do not unlock skins.
+export const MODES = {
+  normal: { id: 'normal', name: 'Normal', desc: '3 vidas, +1 a cada 3 checkpoints. Vale recorde e desbloqueia skins.' },
+  infinite: { id: 'infinite', name: 'Vidas Infinitas', desc: 'Treine sem game over. Recordes separados.' },
+};
+export const MODE_ORDER = ['normal', 'infinite'];
+
 // Rider skins (Roblox R6 style). unlock = best distance (m) needed; 0 = free.
 // acc: accessory on the head — 'none' | 'bacon' | 'long' | 'cap' | 'bandana' | 'antenna' | 'crown'
 // face: 'smile' | 'happy' | 'cool' | 'ninja' | 'robot'

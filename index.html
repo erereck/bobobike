@@ -232,6 +232,53 @@ button{font:inherit;color:inherit}
 .key-mouse{display:inline-flex;align-items:center;gap:5px}
 .key.key-mouse svg{width:11px;height:14px;fill:#fff;stroke:var(--ink);stroke-width:1.5;vertical-align:0}
 .key-mouse svg .hl{fill:var(--pink);stroke:none}
+.ctl .c-up{color:#7dff9a}
+.ctl .c-dn{color:#ff8a96}
+
+/* ---------- settings buttons (SOM / QUALIDADE / VIBRAÇÃO / TELA CHEIA) ---------- */
+#ui:not(.hint-touch) .need-touch{display:none!important}
+.opt .fs-out{display:none}
+#ui.fs-on .opt .fs-in{display:none}
+#ui.fs-on .opt .fs-out{display:block}
+.opt .o-x{display:none;position:absolute;left:50%;top:50%;width:30px;height:4px;margin:-2px 0 0 -15px;border-radius:2px;background:#ff4d5e;border:1.5px solid var(--ink);transform:rotate(-45deg);pointer-events:none}
+.opt.off svg{opacity:.55}
+/* icon-only settings rows on phones (narrow or short screens) */
+@media (max-width:900px),(max-height:520px){
+  .opts-ico .opt{min-width:46px;min-height:46px;padding:6px 10px 7px;gap:6px}
+  .opts-ico .opt .o-l{display:none}
+  .opts-ico .opt-ico .o-t{display:none}
+  .opts-ico .opt-ico{width:46px;padding:0}
+  .opts-ico .opt.off .o-x{display:block}
+  .opts-ico .opt svg{width:22px;height:22px}
+}
+
+/* ---------- game mode toggle (above JOGAR) ---------- */
+.m-mode{display:flex;flex-direction:column;gap:6px}
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:4px;border-radius:16px;background:rgba(11,13,23,.78);border:3px solid var(--ink);box-shadow:inset 0 3px 0 rgba(0,0,0,.35),0 4px 0 var(--ink)}
+.seg-b{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:6px 10px;
+  -webkit-appearance:none;appearance:none;cursor:pointer;touch-action:manipulation;
+  font:17px/1.05 var(--f-display);letter-spacing:.03em;color:rgba(255,255,255,.62);text-shadow:var(--ol-s);
+  border:0;border-radius:11px;background:transparent;transition:background-color .15s,color .15s,transform .12s}
+@media (hover:hover){.seg-b:not(.sel):hover{background:rgba(255,255,255,.07);color:#fff}}
+.seg-b:active{transform:scale(.97)}
+.seg-b:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.seg-b span{min-width:0;text-align:center} /* wraps to 2 lines on tight phones instead of "Vidas Infin..." */
+.seg-b svg{flex:none;overflow:visible;filter:drop-shadow(0 2px 0 var(--ink))}
+.seg-b .heart-svg{width:20px;height:18px}
+.seg-b .heart-svg path{fill:#ff3b5c;stroke:var(--ink);stroke-width:.75;stroke-linejoin:round}
+.seg-b .inf-svg{width:30px;height:16px;color:#c9a6ff}
+.seg-b.sel{color:#fff;box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -3px 0 rgba(0,0,0,.2),0 0 0 2.5px var(--ink)}
+.seg-normal.sel{background:linear-gradient(180deg,#ff7f96,#e8365a)}
+.seg-infinite.sel{background:linear-gradient(180deg,#b78bff,#7a45e8)}
+.seg-infinite.sel .inf-svg{color:#fff}
+.seg-b:not(.sel) svg{opacity:.6}
+.mode-desc{margin:0;min-height:1.3em;text-align:center;font:800 12.5px/1.3 var(--f-body);color:var(--txt-dim);text-shadow:var(--ol-s)}
+#ui.mode-inf .play-wrap .btn{--c1:#c7a2ff;--c2:#8a52f0;--lip:#4a1f9e}
+
+/* ∞ icon (records line, game-over badge) */
+.inf-ico{display:inline-block;flex:none;width:26px;height:14px;vertical-align:-2px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 18'%3E%3Cpath d='M9 4a5 5 0 1 0 0 10c5 0 11-10 16-10a5 5 0 1 1 0 10c-5 0-11-10-16-10z' fill='none' stroke='%230b0d17' stroke-width='7' stroke-linejoin='round'/%3E%3Cpath d='M9 4a5 5 0 1 0 0 10c5 0 11-10 16-10a5 5 0 1 1 0 10c-5 0-11-10-16-10z' fill='none' stroke='%23c9a6ff' stroke-width='3.4' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat}
+.rec-inf{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:9px;border-top:2px dashed rgba(255,255,255,.16);font:800 12.5px/1.2 var(--f-body);color:var(--txt-dim);text-shadow:var(--ol-s)}
+.rec-inf b{font:700 14px/1 var(--f-num);color:#fff}
 
 /* ---------- skin picker: tiny CSS Roblox R6 figures ---------- */
 /* .r6 is 4u x 6u (u = one arm width). Colors come from --hd/--to/--ar/--lg/--ac set inline per skin. */
@@ -401,33 +448,141 @@ button{font:inherit;color:inherit}
 .hud-turbo.boost #h-turbofill::after{opacity:1;animation:stripes .35s linear infinite}
 .hud-turbo.boost .ht-head span{color:#ffc6ec}
 .hud-pause{width:46px;height:46px}
+/* infinite mode: one ∞ badge where the hearts were */
+.hl.inf{padding:5px 10px 5px 9px;align-items:center;background:linear-gradient(180deg,rgba(122,69,232,.92),rgba(58,26,130,.92))}
+.inf-badge{display:flex;align-items:center}
+.inf-badge .inf-svg{display:block;width:44px;height:24px;color:#fff;overflow:visible;filter:drop-shadow(0 0 6px rgba(201,166,255,.8))}
+
+/* compact speed pill (replaces the gauge in the compact HUD) */
+.hud-pill{position:absolute;left:50%;top:calc(var(--sat) + 8px);transform:translateX(-50%);display:none;align-items:center;gap:7px;
+  padding:3px 4px 3px 11px;border-radius:999px;white-space:nowrap;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.13),inset 0 -3px 0 rgba(0,0,0,.25),0 4px 0 var(--ink),0 0 0 2px var(--gc),0 8px 16px rgba(0,0,0,.25);transition:box-shadow .3s}
+.hud-pill b{font:700 22px/1 var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em;text-shadow:var(--ol-s)}
+.hud-pill small{font:900 9.5px/1 var(--f-body);letter-spacing:.08em;color:var(--txt-dim);text-shadow:var(--ol-s)}
+.hp-spd,.hp-avg{display:flex;align-items:baseline;gap:4px}
+.hp-spd b{display:inline-block;min-width:2ch;text-align:right}
+.hp-avg b{font-size:18px}
+.hp-sep{width:2px;height:18px;border-radius:1px;background:rgba(255,255,255,.22)}
+.hp-grade{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;border:2.5px solid var(--ink);font:19px/1 var(--f-display);color:#fff;text-shadow:var(--ol-s);
+  background:var(--gc);background:linear-gradient(180deg,color-mix(in srgb,var(--gc) 62%,#fff),var(--gc) 55%,color-mix(in srgb,var(--gc) 78%,#000));box-shadow:0 0 10px var(--gc)}
+.hud-pill.boost{box-shadow:inset 0 2px 0 rgba(255,255,255,.13),inset 0 -3px 0 rgba(0,0,0,.25),0 4px 0 var(--ink),0 0 0 2px #ff4d8d,0 0 18px 4px rgba(255,77,141,.7)}
+.hud-pill.boost .hp-spd b{color:#ffd0e4}
+
+/* ---------- compact HUD: touch play, or short / narrow screens (ui.js toggles #ui.compact) ----------
+   Everything hugs the top edge so the track (center) and the thumbs (bottom corners) stay clear. */
+#ui.compact{--gut:12px}
+#ui.compact .hud-dist{left:calc(var(--sal) + var(--gut));top:calc(var(--sat) + 8px);min-width:0;padding:3px 10px 6px;border-radius:12px;border-width:2.5px}
+#ui.compact .hd-val{font-size:25px}
+#ui.compact .hd-unit{font-size:14px}
+#ui.compact .hd-rec{margin-top:1px;font-size:8.5px;gap:5px}
+#ui.compact .hd-rec b{font-size:11px}
+#ui.compact .hd-bar{height:6px;margin-top:4px;border-width:1.5px}
+#ui.compact .hd-mult{position:absolute;right:-10px;top:-9px;margin:0;font-size:12px;padding:2px 5px 1px;border-width:2px}
+#ui.compact .hd-new{font-size:10.5px;padding:3px 6px 2px;right:auto;left:6px;top:auto;bottom:-15px;border-width:2px}
+#ui.compact .hud-tr{right:calc(var(--sar) + var(--gut));top:calc(var(--sat) + 8px);gap:6px}
+#ui.compact .hl{padding:5px 7px;gap:2px;border-radius:12px;border-width:2.5px}
+#ui.compact .heart svg{width:17px;height:15px}
+#ui.compact .hl.inf{padding:3px 8px}
+#ui.compact .inf-badge .inf-svg{width:34px;height:19px}
+#ui.compact .hc{font-size:16px;padding:4px 9px 4px 5px;gap:5px;border-radius:12px;border-width:2.5px}
+#ui.compact .coin{width:17px;height:17px;border-width:2px}
+#ui.compact .coin::after{inset:3px;border-width:1.5px}
+#ui.compact .hud-pause{width:44px;height:44px;border-radius:12px}
+#ui.compact .hud-pill{display:flex}
+#ui.compact .hud-speed,#ui.compact .hud-zone{display:none}
+#ui.compact.is-touch .hud-turbo{display:none} /* the TURBO button shows the level */
+#ui.compact:not(.is-touch) .hud-turbo{width:150px;padding:5px 9px 8px;bottom:calc(var(--sab) + 12px)}
+#ui.compact:not(.is-touch) .ht-head{font-size:14px;margin-bottom:4px}
+#ui.compact:not(.is-touch) .ht-bar{height:13px;border-width:2px}
+#ui.compact #toasts{top:calc(var(--sat) + 52px);gap:6px}
+#ui.compact .toast{max-width:min(100%,420px);font-size:17px;padding:4px 13px 6px;border-radius:11px;border-width:2.5px;box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -3px 0 rgba(0,0,0,.2),0 3px 0 var(--ink),0 6px 14px rgba(0,0,0,.25)}
+#ui.compact .toast.t-record{font-size:21px;padding:5px 16px 7px}
+#ui.compact .toast.t-cp{padding-left:32px}
+#ui.compact .toast.t-cp::before{left:11px;width:14px;height:17px}
+#ui.compact #zone-banner{top:calc(var(--sat) + 19%);height:78px}
+#ui.compact .zb-band{top:12px;bottom:12px}
+#ui.compact .zb-band::before,#ui.compact .zb-band::after{height:3px}
+#ui.compact .zb-band::before{top:-3px}
+#ui.compact .zb-band::after{bottom:-3px}
+#ui.compact .zb-num{font-size:11px}
+#ui.compact .zb-name{font-size:clamp(22px,6vmin,34px)}
+#ui.compact #countdown{padding-bottom:16vh}
+#ui.compact #cd-txt{font-size:clamp(72px,22vmin,124px);text-shadow:var(--ol)}
+#ui.compact #cd-txt[data-n="go"]{font-size:clamp(64px,19vmin,112px)}
+#ui.compact #countdown.go::before{width:80vmin;height:80vmin}
+/* portrait phones: the top row is full, so the pill + toasts drop under it */
+@media (max-aspect-ratio:4/5){
+  /* right-aligned under lives/coins/pause: centered, it overlapped the distance plate and its NOVO RECORDE tag */
+  #ui.compact .hud-pill{top:calc(var(--sat) + 60px);left:auto;right:calc(var(--sar) + var(--gut));transform:none}
+  #ui.compact #toasts{top:calc(var(--sat) + 104px)}
+  #ui.compact .heart svg{width:14px;height:13px} /* 6 hearts + coins + pause next to a 4-digit distance */
+  #ui.compact .hud-tr{gap:5px}
+}
+/* 4-6 hearts on phones: two rows of 3, so the lives never run into the speed pill (667 landscape) or the distance (360 portrait) */
+@media (max-width:800px){
+  #ui.compact .hl:has(>.heart:nth-child(4)){display:grid;grid-template-columns:repeat(3,auto);gap:2px;padding:4px 7px}
+  #ui.compact .hl:has(>.heart:nth-child(4)) .heart svg{width:15px;height:13px}
+}
 
 /* ---------- touch controls ---------- */
-#touch{position:absolute;inset:0;display:none;--ts:1}
+/* The whole layer takes touches (joystick zone left, camera drag right); the HUD screen sits above it
+   (z-index) so its pause button still works, and its pointer-events:none plates let touches through. */
+#s-hud{z-index:2}
+#touch{position:absolute;inset:0;z-index:1;display:none;pointer-events:auto;touch-action:none;-webkit-user-select:none;user-select:none;
+  --jr:clamp(44px,12vmin,68px);  /* joystick travel radius */
+  --tu:clamp(3.4px,.95vmin,5px)} /* button size unit */
 #ui.is-touch.scr-hud #touch{display:block}
-.t-left{position:absolute;left:calc(var(--sal) + 14px);bottom:calc(var(--sab) + 16px);display:flex;gap:12px;transform:scale(var(--ts));transform-origin:0 100%}
-.t-right{position:absolute;right:calc(var(--sar) + 14px);bottom:calc(var(--sab) + 16px);width:252px;height:186px;transform:scale(var(--ts));transform-origin:100% 100%}
+#toasts,#zone-banner,#countdown,#flash{z-index:3}
+
+/* floating joystick: a ghost at its home spot while idle, jumps under the thumb on touch */
+.t-stick{position:absolute;left:calc(var(--sal) + 20px + var(--jr) * .35);bottom:calc(var(--sab) + 20px + var(--jr) * .35);width:calc(var(--jr) * 2);height:calc(var(--jr) * 2);pointer-events:none;opacity:.95;will-change:transform}
+.t-stick.idle{opacity:.42;transition:transform .2s cubic-bezier(.3,1.3,.5,1),opacity .25s}
+.ts-base{position:absolute;inset:0;border-radius:50%;border:3px solid var(--ink);
+  background:radial-gradient(circle,rgba(11,13,23,.18) 0 52%,rgba(11,13,23,.46) 53% 100%);
+  box-shadow:inset 0 0 0 3px rgba(255,255,255,.3),0 4px 0 var(--ink),0 8px 18px rgba(0,0,0,.25);transition:box-shadow .12s}
+.ts-arrows{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.ts-arrows path{fill:rgba(255,255,255,.75);stroke:var(--ink);stroke-width:3.5;stroke-linejoin:round;paint-order:stroke;transition:fill .12s}
+.t-stick.thr .ts-up{fill:#46e06b}
+.t-stick.brk .ts-dn{fill:#ff4d5e}
+.t-stick.thr .ts-base{box-shadow:inset 0 0 0 3px rgba(255,255,255,.3),0 4px 0 var(--ink),0 -6px 20px -4px rgba(70,224,107,.85)}
+.t-stick.brk .ts-base{box-shadow:inset 0 0 0 3px rgba(255,255,255,.3),0 4px 0 var(--ink),0 10px 20px -4px rgba(255,77,94,.9)}
+.ts-knob{position:absolute;left:50%;top:50%;width:calc(var(--jr) * .96);height:calc(var(--jr) * .96);margin:calc(var(--jr) * -.48) 0 0 calc(var(--jr) * -.48);border-radius:50%;border:3px solid var(--ink);
+  background:radial-gradient(circle at 38% 30%,#fff 0 16%,#e4e9ff 38%,#98a6e6 100%);
+  box-shadow:inset 0 -5px 0 rgba(0,0,0,.18),0 4px 0 var(--ink),0 6px 14px rgba(0,0,0,.3);will-change:transform}
+.t-stick.idle .ts-knob{transition:transform .14s ease-out}
+.ts-hint{position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);white-space:nowrap;
+  font:13px/1 var(--f-display);letter-spacing:.08em;color:#fff;text-shadow:var(--ol-s);
+  padding:5px 9px 4px;border-radius:9px;background:rgba(11,13,23,.72);border:2px solid var(--ink);animation:hintBob 1.4s ease-in-out infinite}
+.ts-hint::after{content:'';position:absolute;left:50%;top:100%;margin-left:-6px;border:6px solid transparent;border-top-color:var(--ink);border-bottom:0}
+.t-stick:not(.idle) .ts-hint{display:none}
+@keyframes hintBob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-4px)}}
+
+/* action buttons: PULO in the corner, TURBO / MORTAL / GIRO on an arc around it (sizes in --tu ≈ 1vmin) */
+.t-right{position:absolute;right:calc(var(--sar) + 16px);bottom:calc(var(--sab) + 16px);width:calc(var(--tu) * 43);height:calc(var(--tu) * 41);pointer-events:none}
 .tb{
-  position:absolute;pointer-events:auto;touch-action:none;isolation:isolate;cursor:pointer;
-  display:grid;place-items:center;border-radius:50%;border:3px solid var(--ink);
-  font:15px/1 var(--f-display);letter-spacing:.04em;color:#fff;text-shadow:var(--ol-s);
-  background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.35),rgba(255,255,255,.06) 62%),var(--tc,rgba(24,28,60,.6));
-  box-shadow:inset 0 -5px 0 rgba(0,0,0,.3),0 5px 0 var(--ink),0 8px 16px rgba(0,0,0,.25);
-  transition:transform .06s ease,box-shadow .06s ease,filter .06s;
+  position:absolute;isolation:isolate;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border-radius:50%;border:3px solid var(--ink);
+  font:calc(var(--tu) * 2.7)/1 var(--f-display);letter-spacing:.04em;color:#fff;text-shadow:var(--ol-s);
+  background:radial-gradient(circle at 50% 28%,rgba(255,255,255,.42),rgba(255,255,255,.06) 60%),var(--tc,rgba(24,28,60,.7));
+  box-shadow:inset 0 -5px 0 rgba(0,0,0,.28),0 4px 0 var(--ink),0 7px 14px rgba(0,0,0,.25);
+  opacity:.6;transition:transform .07s ease,opacity .1s,box-shadow .07s,filter .07s;
 }
-.tb.on{transform:translateY(4px) scale(.94);filter:brightness(1.35);box-shadow:inset 0 -2px 0 rgba(0,0,0,.3),0 1px 0 var(--ink)}
-.tb svg{width:38px;height:38px;fill:#fff;filter:drop-shadow(0 2px 0 var(--ink))}
-.t-steer{position:relative;width:86px;height:86px;--tc:rgba(24,28,60,.6)}
-.t-jump{right:0;bottom:0;width:102px;height:102px;font-size:22px;--tc:rgba(47,191,85,.72)}
-.t-boost{right:114px;bottom:40px;width:72px;height:72px;--tc:rgba(255,61,127,.55);--t:0}
-.t-boost::before{content:'';position:absolute;inset:-10px;border-radius:50%;z-index:-1;background:conic-gradient(#ffd23f calc(var(--t) * 360deg),rgba(11,13,23,.7) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 8px),#000 calc(100% - 7.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 8px),#000 calc(100% - 7.5px))}
-.t-boost.full{box-shadow:inset 0 -5px 0 rgba(0,0,0,.3),0 5px 0 var(--ink),0 0 22px 6px rgba(255,210,63,.75)}
-.t-boost.boost{--tc:rgba(200,80,255,.8)}
-.t-brake{right:196px;bottom:-2px;width:58px;height:58px;font-size:13px;--tc:rgba(255,77,94,.6)}
-.t-flip{right:112px;bottom:128px;width:56px;height:56px;font-size:11.5px;--tc:rgba(160,108,255,.62)}
-.t-spin{right:22px;bottom:118px;width:56px;height:56px;font-size:12.5px;--tc:rgba(160,108,255,.62)}
-#ui.is-touch .hud-turbo{display:none}
-#ui.is-touch .hud-speed{left:calc(var(--sal) + 10px);bottom:calc(var(--sab) + 118px);transform:scale(.74);transform-origin:0 100%}
+.tb.on{opacity:1;transform:translateY(3px) scale(.9);filter:brightness(1.25);box-shadow:inset 0 -2px 0 rgba(0,0,0,.28),0 1px 0 var(--ink),0 0 18px rgba(255,255,255,.35)}
+.tb svg{width:42%;height:42%;fill:#fff;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round;paint-order:stroke;overflow:visible}
+.t-jump{right:0;bottom:0;width:calc(var(--tu) * 24);height:calc(var(--tu) * 24);font-size:calc(var(--tu) * 4.4);--tc:rgba(47,191,85,.85)}
+.t-jump svg{width:36%;height:36%}
+.t-boost{right:calc(var(--tu) * 27);bottom:calc(var(--tu) * 4);width:calc(var(--tu) * 16);height:calc(var(--tu) * 16);font-size:calc(var(--tu) * 3);--tc:rgba(255,61,127,.75);--t:0}
+.t-boost::before{content:'';position:absolute;inset:calc(var(--tu) * -1.9);border-radius:50%;z-index:-1;
+  background:conic-gradient(#ffd23f calc(var(--t) * 360deg),rgba(11,13,23,.72) 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - var(--tu) * 1.6),#000 calc(100% - var(--tu) * 1.6 + .5px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - var(--tu) * 1.6),#000 calc(100% - var(--tu) * 1.6 + .5px))}
+.t-boost.full{opacity:.92;box-shadow:inset 0 -5px 0 rgba(0,0,0,.28),0 4px 0 var(--ink),0 0 22px 6px rgba(255,210,63,.75);animation:turboReady .8s ease-in-out infinite alternate}
+.t-boost.on.full,.t-boost.boost{animation:none}
+@keyframes turboReady{from{filter:brightness(1)}to{filter:brightness(1.3)}}
+.t-boost.boost{opacity:1;--tc:rgba(200,80,255,.85)}
+.t-flip{right:calc(var(--tu) * 20.65);bottom:calc(var(--tu) * 20.65);width:calc(var(--tu) * 13.5);height:calc(var(--tu) * 13.5);font-size:calc(var(--tu) * 2.35);--tc:rgba(160,108,255,.78)}
+.t-spin{right:calc(var(--tu) * 5.25);bottom:calc(var(--tu) * 27);width:calc(var(--tu) * 13.5);height:calc(var(--tu) * 13.5);font-size:calc(var(--tu) * 2.35);--tc:rgba(160,108,255,.78)}
+.t-flip svg,.t-spin svg{width:40%;height:40%}
 
 /* ---------- overlays: toasts, zone banner, countdown, flash ---------- */
 #toasts{position:absolute;left:0;right:0;top:calc(var(--sat) + 17vh);display:none;flex-direction:column;align-items:center;gap:10px;padding:0 var(--gut)}
@@ -489,9 +644,11 @@ button{font:inherit;color:inherit}
 /* ---------- pause ---------- */
 #s-pause{pointer-events:auto;background:radial-gradient(ellipse at center,rgba(11,13,23,.45),rgba(11,13,23,.82))}
 #s-pause.on{display:flex;align-items:center;justify-content:center}
-.pause-card{width:min(400px,calc(100vw - 32px));display:flex;flex-direction:column;align-items:stretch;gap:16px;padding:26px 24px 30px;border-radius:24px;animation:cardIn .4s cubic-bezier(.3,1.5,.5,1) both}
+.pause-card{width:min(460px,calc(100vw - 32px));display:flex;flex-direction:column;align-items:stretch;gap:16px;padding:26px 24px 30px;border-radius:24px;animation:cardIn .4s cubic-bezier(.3,1.5,.5,1) both}
 .title-xl{margin:0 0 6px;text-align:center;font:clamp(44px,8vw,62px)/1 var(--f-display);letter-spacing:.03em;text-shadow:var(--ol)}
 .opt-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+.pause-sub{display:flex;flex-direction:column;gap:14px}
+.pause-sub .btn{width:100%}
 @keyframes cardIn{from{opacity:0;transform:translateY(24px) scale(.9)}to{opacity:1;transform:none}}
 
 /* ---------- game over ---------- */
@@ -501,6 +658,8 @@ button{font:inherit;color:inherit}
 .go-head{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;animation:dropIn .5s cubic-bezier(.3,1.5,.5,1) both}
 .go-title{margin:0;font:clamp(38px,5.4vw,60px)/1 var(--f-display);letter-spacing:.03em;text-shadow:var(--ol);transform:rotate(-2deg)}
 .go-veh{font:15px/1 var(--f-display);letter-spacing:.05em;padding:6px 11px 5px;border-radius:10px;background:var(--va);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);text-shadow:var(--ol-s)}
+.go-mode{display:inline-flex;align-items:center;gap:6px;font:14px/1 var(--f-display);letter-spacing:.05em;padding:5px 10px 4px 8px;border-radius:10px;background:linear-gradient(180deg,#b78bff,#7a45e8);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);text-shadow:var(--ol-s);transform:rotate(2deg)}
+.go-mode .inf-ico{width:24px;height:13px;filter:brightness(1.6)}
 /* new skin(s) unlocked this run: gold celebratory ribbon under the title */
 .go-unlock{position:relative;align-self:center;max-width:100%;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px 10px;
   padding:5px 16px 6px 12px;border-radius:14px;border:3px solid var(--ink);overflow:hidden;
@@ -574,6 +733,13 @@ button{font:inherit;color:inherit}
 @keyframes dropIn{from{opacity:0;transform:translateY(-30px) scale(1.2)}to{opacity:1;transform:none}}
 
 /* ---------- responsive ---------- */
+/* 900p-class desktops: the mode toggle takes the keyboard hint row's place (keys stay on JOGAR / the vehicle title) */
+@media (max-height:960px) and (min-width:901px){
+  .play-hint{display:none}
+  .m-left{gap:14px}
+  .m-mode{gap:4px}
+  .seg-b{min-height:38px}
+}
 @media (max-height:820px) and (min-width:901px){
   .logo{font-size:clamp(56px,5.8vw,88px)}
   .m-tagline{margin-top:14px;font-size:15px}
@@ -584,6 +750,15 @@ button{font:inherit;color:inherit}
   .vlist{gap:9px}
   .btn-xl{min-height:64px;padding:11px 24px 13px}
   .play-hint{display:none}
+  /* room for the mode toggle above JOGAR (768p laptops) */
+  .vc-tag{display:none} /* the selected vehicle's tagline is still shown in the nameplate */
+  .m-left{gap:10px}
+  .vcard{padding:5px 12px 5px 8px}
+  .vc-icon{width:46px;height:46px}
+  .vc-stats{gap:2px 8px}
+  .m-play{gap:8px;padding-top:2px}
+  .m-mode{gap:4px}
+  .seg-b{min-height:34px;padding:4px 10px}
 }
 /* 720p-class desktop windows: make room for the skin row so JOGAR stays on screen */
 @media (max-height:760px) and (min-width:901px){
@@ -611,6 +786,9 @@ button{font:inherit;color:inherit}
   .skchip .r6{--u:6.5px}
   .m-play{padding-top:2px}
   .btn-xl{min-height:58px;padding:9px 22px 11px}
+  .m-tagline{display:none} /* room for the mode toggle */
+  .m-grades{margin-top:10px}
+  .seg-b{min-height:32px}
 }
 @media (max-height:800px){
   .hud-speed{transform:translateX(-50%) scale(.88)}
@@ -724,19 +902,89 @@ button{font:inherit;color:inherit}
   #go-spark{aspect-ratio:2.6/1;height:auto}
 }
 @media (max-width:420px){
-  #touch{--ts:.84}
   /* 7 chips in ~300-376px: keep the "2.500 m" labels of neighbouring locked chips from touching */
   .sk-row{gap:5px}
   .sk-req{font-size:9px;padding:2px 2px 1px;letter-spacing:-.03em}
   .go-big b{font-size:46px}
   .pause-card{padding:22px 16px 24px}
 }
-@media (max-height:500px){
-  #touch{--ts:.8}
-  #ui.is-touch .hud-speed{transform:scale(.6);bottom:calc(var(--sab) + 96px)}
+
+/* portrait phones / narrow windows: JOGAR (with the mode toggle) never scrolls out of reach */
+@media (max-width:900px){
+  .m-play{position:sticky;bottom:0;z-index:3}
+  .m-mode{margin-bottom:2px}
+  .seg-b{font-size:15.5px;gap:6px;padding:6px 8px}
+  .seg-b .inf-svg{width:26px;height:14px}
+  .btn-sm{min-height:44px}
 }
-@media (max-width:420px){
-  #ui.is-touch .hud-speed{transform:scale(.64);bottom:calc(var(--sab) + 100px)}
+
+/* ---------- landscape phones / short windows ----------
+   Menu: left = scrolling column (logo, vehicles, skins) + records strip; right = settings on top and
+   mode + JOGAR pinned bottom-right; the middle stays open for the 3D vehicle preview. */
+@media (max-height:520px){
+  #s-menu.on{display:grid}
+  #s-menu{
+    grid-template-columns:minmax(0,min(46%,400px)) minmax(0,1fr);
+    grid-template-rows:auto minmax(0,1fr) auto;
+    gap:8px 16px;overflow:hidden;align-items:stretch;
+    padding:calc(var(--sat) + 10px) calc(var(--sar) + 14px) calc(var(--sab) + 10px) calc(var(--sal) + 14px);
+    background:linear-gradient(90deg,rgba(8,10,24,.8) 0,rgba(8,10,24,.55) 36%,rgba(8,10,24,0) 54%),linear-gradient(0deg,rgba(8,10,24,.55) 0,rgba(8,10,24,0) 36%);
+  }
+  .m-left{display:flex;grid-column:1;grid-row:1 / -1;min-height:0;gap:10px;overflow-x:hidden;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+    padding:6px 8px 8px 12px;margin-left:-12px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.3) transparent}
+  .m-right{display:contents}
+  .m-opts,.m-logo,.m-pick,.m-skins,.m-info{width:auto;max-width:none;order:0}
+  .m-opts{grid-column:2;grid-row:1;align-self:start;justify-self:end;gap:8px}
+  .m-gap,.m-nav{display:none}
+  .m-logo{display:block;text-align:left;padding-top:0}
+  .logo{font-size:44px;align-items:flex-start;transform-origin:0 50%}
+  .m-tagline,.m-grades,.play-hint{display:none}
+  .m-pick{gap:7px}
+  .sec-title{font-size:15px;margin:0}
+  .sec-title .keys{display:none}
+  .vlist{gap:7px;padding-right:12px}
+  .vcard{grid-template-columns:42px minmax(0,1fr) auto;gap:10px;padding:5px 10px 5px 6px;border-radius:14px}
+  .vcard.sel{transform:translateX(8px)}
+  .vcard.sel::after{display:block}
+  .vc-icon{width:42px;height:42px;border-radius:11px}
+  .vc-icon svg{width:34px;height:22px}
+  .vc-name{font-size:17px}
+  .vc-tag{display:none}
+  .vc-stats{grid-column:auto;grid-template-columns:auto auto;gap:2px 6px}
+  .st-l{font-size:8px}
+  .pips i{width:9px;height:6px}
+  .sel-badge{display:none!important}
+  .m-skins{gap:6px;padding-right:0;margin-top:2px}
+  .skchip{height:50px;padding-bottom:4px;border-radius:11px}
+  .skchip .r6{--u:6px}
+  .m-info{grid-column:2;grid-row:2;flex-direction:column;align-items:stretch;align-self:start;justify-self:end;gap:0;max-width:250px}
+  .m-info .panel+.panel{display:none} /* controls: the ghost stick + labelled buttons teach it in-game */
+  .m-info .panel{padding:7px 12px 8px;border-radius:13px}
+  .m-info .panel h3{display:none}
+  .rec-grid{grid-template-columns:repeat(2,auto);justify-content:space-between;gap:5px 14px;min-width:0}
+  .rec-grid span{font-size:8px;letter-spacing:.04em}
+  .rec-grid b{font-size:16px;margin-top:2px}
+  .rec-grid small{font-size:10px}
+  .mini-grade{width:18px;height:18px;font-size:12px;margin-left:3px;border-radius:5px}
+  .rec-inf{margin-top:5px;padding-top:5px;font-size:11px}
+  .rec-inf b{font-size:12px}
+  .m-play{position:absolute;right:calc(var(--sar) + 14px);bottom:calc(var(--sab) + 10px);width:min(340px,42vw);margin:0;padding:0;gap:8px;pointer-events:auto}
+  .m-mode{gap:4px}
+  .seg-b{font-size:14.5px;min-height:44px;padding:4px 6px;gap:5px}
+  .seg-b .inf-svg{width:26px;height:14px}
+  .mode-desc{font-size:11px;line-height:1.25;min-height:2.5em;display:flex;align-items:center;justify-content:center;padding:0 4px;background:rgba(8,10,24,.55);border-radius:8px}
+  .play-wrap .btn{font-size:32px;min-height:60px;padding:8px 20px 10px;--lp:7px}
+  .play-wrap .btn svg{width:24px;height:24px}
+
+  @media (max-height:380px){.rec-grid>div:nth-child(n+3){display:none}} /* keep the vehicle preview visible */
+  /* pause: title + settings on one line, CONTINUAR, then the three other actions side by side */
+  .pause-card{width:min(640px,calc(100vw - 32px));max-height:calc(100% - 16px);overflow-y:auto;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:10px 12px;padding:12px 16px 16px;border-radius:20px}
+  .pause-card .title-xl{margin:0;font-size:36px;text-align:left}
+  .pause-card .opt-row{grid-row:1;grid-column:2;margin:0;justify-content:flex-end;gap:8px}
+  .pause-card>.btn-lg{grid-column:1 / -1;min-height:56px;font-size:26px}
+  .pause-sub{grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .pause-sub .btn{font-size:16px;min-height:50px;padding:8px 10px 10px;gap:7px;--lp:6px;white-space:normal;line-height:1.05}
+  .pause-sub .btn svg{width:18px;height:18px;flex:none}
 }
 
 @media (prefers-reduced-motion:reduce){
@@ -792,15 +1040,21 @@ button{font:inherit;color:inherit}
     </div>
 
     <div class="m-play">
+      <div class="m-mode" id="m-mode" hidden>
+        <div class="seg" id="m-seg" role="group" aria-label="Modo de jogo"></div>
+        <p class="mode-desc" id="m-modedesc" aria-live="polite"></p>
+      </div>
       <div class="play-wrap"><button type="button" class="btn btn-green btn-xl" data-act="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><span>JOGAR</span><kbd class="only-kb">ENTER</kbd></button></div>
       <div class="play-hint only-kb"><kbd class="key">←</kbd><kbd class="key">→</kbd> trocar veículo · <kbd class="key">ENTER</kbd> jogar</div>
     </div>
    </div>
 
    <div class="m-right">
-    <div class="m-opts">
-      <button type="button" class="btn btn-dark btn-sm" data-act="mute" aria-label="Alternar som"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l5-4.5v15L7 15H3z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>SOM: <span class="v">LIGADO</span></span></button>
-      <button type="button" class="btn btn-dark btn-sm" data-act="quality" aria-label="Alternar qualidade gráfica"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7.1L12 17.3 5.8 21l1.6-7.1L2 9.2l7.1-.6z"/></svg><span>QUALIDADE: <span class="v">ALTA</span></span></button>
+    <div class="m-opts opts-ico">
+      <button type="button" class="btn btn-dark btn-sm opt opt-ico" data-act="mute" aria-label="Alternar som"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l5-4.5v15L7 15H3z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span class="o-t"><span class="o-l">SOM: </span><span class="v">LIGADO</span></span><i class="o-x"></i></button>
+      <button type="button" class="btn btn-dark btn-sm opt" data-act="quality" aria-label="Alternar qualidade gráfica"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7.1L12 17.3 5.8 21l1.6-7.1L2 9.2l7.1-.6z"/></svg><span class="o-t"><span class="o-l">QUALIDADE: </span><span class="v">ALTA</span></span></button>
+      <button type="button" class="btn btn-dark btn-sm opt opt-ico need-touch" data-act="haptics" aria-label="Alternar vibração" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7.5" y="3" width="9" height="18" rx="2.2"/><path d="M4.5 8v8M2 10v4M19.5 8v8M22 10v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="o-t"><span class="o-l">VIBRAÇÃO: </span><span class="v">LIGADA</span></span><i class="o-x"></i></button>
+      <button type="button" class="btn btn-dark btn-sm opt opt-ico" data-act="fullscreen" aria-label="Alternar tela cheia" hidden><svg class="fs-in" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9V3h6v2.6H5.6V9zm12-6h6v6h-2.6V5.6H15zM3 15h2.6v3.4H9V21H3zm15.4 0H21v6h-6v-2.6h3.4z"/></svg><svg class="fs-out" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 3H9v6H3V6.4h3.4zM15 3h2.6v3.4H21V9h-6zM3 15h6v6H6.4v-3.4H3zm12 0h6v2.6h-3.4V21H15z"/></svg><span class="o-t"><span class="v">TELA CHEIA</span></span></button>
     </div>
 
     <div class="m-gap" aria-hidden="true"></div>
@@ -824,6 +1078,7 @@ button{font:inherit;color:inherit}
           <div><span>Velocidade máx.</span><b id="rec-top">0</b><small>km/h</small></div>
           <div><span>Corridas</span><b id="rec-runs">0</b></div>
         </div>
+        <div class="rec-inf" id="rec-inf" hidden><i class="inf-ico" aria-hidden="true"></i><span>Infinito: <b id="rec-infdist">0</b> m<span id="rec-infavgw"> · média <b id="rec-infavg">0</b> km/h</span></span></div>
       </div>
       <div class="panel plate blur">
         <h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10a5 5 0 0 1 5 5v3.5a2.5 2.5 0 0 1-4.6 1.4L15.8 15H8.2l-1.6 1.9A2.5 2.5 0 0 1 2 15.5V12a5 5 0 0 1 5-5zm0 3v1.2H5.8v1.6H7V14h1.6v-1.2h1.2v-1.6H8.6V10zm9.2.4a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 2a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>CONTROLES</h3>
@@ -842,13 +1097,12 @@ button{font:inherit;color:inherit}
           <div class="ctl ctl-wide"><span class="keys"><kbd class="key key-mouse"><svg viewBox="0 0 12 16" aria-hidden="true"><rect x="1" y="1" width="10" height="14" rx="5"/><path d="M1 6.6h10M6 1v5.6"/><rect class="hl" x="4.6" y="2.6" width="2.8" height="4.6" rx="1.4"/></svg>RODINHA</kbd></span>zoom</div>
         </div>
         <div class="ctl-grid only-touch">
-          <div class="ctl"><span class="keys"><kbd class="key"><svg viewBox="0 0 10 10"><path d="M7 1 2 5l5 4z"/></svg> <svg viewBox="0 0 10 10"><path d="M3 1l5 4-5 4z"/></svg></kbd></span>virar</div>
+          <div class="ctl ctl-wide"><span class="keys"><kbd class="key">ESQUERDA</kbd></span>arraste: <b class="c-up">↑ acelera</b> · <b class="c-dn">↓ freia</b> · ← → vira</div>
           <div class="ctl"><span class="keys"><kbd class="key">PULO</kbd></span>pular</div>
           <div class="ctl"><span class="keys"><kbd class="key">TURBO</kbd></span>turbo</div>
-          <div class="ctl"><span class="keys"><kbd class="key">FREIO</kbd></span>frear</div>
           <div class="ctl"><span class="keys"><kbd class="key">MORTAL</kbd></span>flip no ar</div>
           <div class="ctl"><span class="keys"><kbd class="key">GIRO</kbd></span>giro 360</div>
-          <div class="ctl ctl-auto">O veículo acelera sozinho!</div>
+          <div class="ctl ctl-wide"><span class="keys"><kbd class="key">DIREITA</kbd></span>arraste: girar câmera</div>
         </div>
       </div>
     </div>
@@ -862,6 +1116,13 @@ button{font:inherit;color:inherit}
       <div class="hd-rec"><span>RECORDE</span><b id="h-rec">—</b></div>
       <div class="hd-bar"><i id="h-recbar"></i></div>
       <div class="hd-new">NOVO RECORDE!</div>
+    </div>
+
+    <div class="hud-pill plate g-D" id="h-pill" aria-hidden="true">
+      <span class="hp-spd"><b id="h-pkmh">0</b><small>km/h</small></span>
+      <i class="hp-sep"></i>
+      <span class="hp-avg"><small>MÉDIA</small><b id="h-pavg">0</b></span>
+      <span class="hp-grade" id="h-pgrade">D</span>
     </div>
 
     <div class="hud-zone">
@@ -901,11 +1162,16 @@ button{font:inherit;color:inherit}
     <div class="pause-card plate blur">
       <h2 class="title-xl">PAUSADO</h2>
       <button type="button" class="btn btn-green btn-lg" data-act="resume"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><span>CONTINUAR</span><kbd class="only-kb">ESC</kbd></button>
-      <button type="button" class="btn btn-yellow" data-act="restart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a8 8 0 1 1-7.4 5h2.3A6 6 0 1 0 12 6v3L7 5l5-4z"/></svg><span>RECOMEÇAR</span></button>
-      <button type="button" class="btn btn-blue" data-act="menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg><span>MENU</span></button>
-      <div class="opt-row">
-        <button type="button" class="btn btn-dark btn-sm" data-act="mute" aria-label="Alternar som"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l5-4.5v15L7 15H3z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>SOM: <span class="v">LIGADO</span></span></button>
-        <button type="button" class="btn btn-dark btn-sm" data-act="quality" aria-label="Alternar qualidade gráfica"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7.1L12 17.3 5.8 21l1.6-7.1L2 9.2l7.1-.6z"/></svg><span>QUALIDADE: <span class="v">ALTA</span></span></button>
+      <div class="pause-sub">
+        <button type="button" class="btn btn-yellow" data-act="restart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a8 8 0 1 1-7.4 5h2.3A6 6 0 1 0 12 6v3L7 5l5-4z"/></svg><span>RECOMEÇAR</span></button>
+        <button type="button" class="btn btn-pink" data-act="end"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 2.5h2.6V4H19l-2.6 4.5L19 13H7.6v8.5H5z"/></svg><span>ENCERRAR CORRIDA</span></button>
+        <button type="button" class="btn btn-blue" data-act="menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg><span>MENU</span></button>
+      </div>
+      <div class="opt-row opts-ico">
+        <button type="button" class="btn btn-dark btn-sm opt opt-ico" data-act="mute" aria-label="Alternar som"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l5-4.5v15L7 15H3z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span class="o-t"><span class="o-l">SOM: </span><span class="v">LIGADO</span></span><i class="o-x"></i></button>
+        <button type="button" class="btn btn-dark btn-sm opt" data-act="quality" aria-label="Alternar qualidade gráfica"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7.1L12 17.3 5.8 21l1.6-7.1L2 9.2l7.1-.6z"/></svg><span class="o-t"><span class="o-l">QUALIDADE: </span><span class="v">ALTA</span></span></button>
+        <button type="button" class="btn btn-dark btn-sm opt opt-ico need-touch" data-act="haptics" aria-label="Alternar vibração" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7.5" y="3" width="9" height="18" rx="2.2"/><path d="M4.5 8v8M2 10v4M19.5 8v8M22 10v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="o-t"><span class="o-l">VIBRAÇÃO: </span><span class="v">LIGADA</span></span><i class="o-x"></i></button>
+        <button type="button" class="btn btn-dark btn-sm opt opt-ico" data-act="fullscreen" aria-label="Alternar tela cheia" hidden><svg class="fs-in" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9V3h6v2.6H5.6V9zm12-6h6v6h-2.6V5.6H15zM3 15h2.6v3.4H9V21H3zm15.4 0H21v6h-6v-2.6h3.4z"/></svg><svg class="fs-out" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 3H9v6H3V6.4h3.4zM15 3h2.6v3.4H21V9h-6zM3 15h6v6H6.4v-3.4H3zm12 0h6v2.6h-3.4V21H15z"/></svg><span class="o-t"><span class="v">TELA CHEIA</span></span></button>
       </div>
     </div>
   </section>
@@ -914,7 +1180,7 @@ button{font:inherit;color:inherit}
   <section id="s-over" class="screen g-D" aria-label="Fim da corrida">
     <div class="go-scroll">
       <div class="go-card">
-        <div class="go-head"><h2 class="go-title">FIM DA CORRIDA</h2><span class="go-veh" id="go-veh">BMX Turbo</span></div>
+        <div class="go-head"><h2 class="go-title">FIM DA CORRIDA</h2><span class="go-veh" id="go-veh">BMX Turbo</span><span class="go-mode" id="go-mode" hidden><i class="inf-ico" aria-hidden="true"></i>VIDAS INFINITAS</span></div>
 
         <div class="go-unlock" id="go-unlock" role="status" hidden><svg class="gu-star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7.1L12 17.3 5.8 21l1.6-7.1L2 9.2l7.1-.6z"/></svg><span class="gu-lbl" id="go-unlocklbl">NOVA SKIN DESBLOQUEADA:</span><span class="gu-names" id="go-unlocknames"></span><span class="gu-tip">equipe no MENU</span></div>
 
@@ -960,17 +1226,18 @@ button{font:inherit;color:inherit}
   </section>
 
   <!-- ============ TOUCH CONTROLS ============ -->
+  <!-- floating joystick (left ~44%: spawns where the thumb lands), action buttons (right), camera drag (rest of the right half) -->
   <div id="touch" aria-hidden="true">
-    <div class="t-left">
-      <div class="tb t-steer" data-k="left"><svg viewBox="0 0 24 24"><path d="M15.5 4 6 12l9.5 8z"/></svg></div>
-      <div class="tb t-steer" data-k="right"><svg viewBox="0 0 24 24"><path d="M8.5 4 18 12l-9.5 8z"/></svg></div>
+    <div class="t-stick idle" id="t-stick">
+      <div class="ts-base"><svg class="ts-arrows" viewBox="0 0 100 100"><path class="ts-up" d="M50 9 61 22H39z"/><path class="ts-dn" d="M50 91 39 78h22z"/><path class="ts-lr" d="M9 50 22 39v22zM91 50 78 61V39z"/></svg></div>
+      <div class="ts-knob" id="t-knob"></div>
+      <span class="ts-hint" id="t-hint" hidden>ARRASTE</span>
     </div>
     <div class="t-right">
-      <div class="tb t-flip" data-k="flip">MORTAL</div>
-      <div class="tb t-spin" data-k="spin">GIRO</div>
-      <div class="tb t-boost" data-k="boost" id="t-boost">TURBO</div>
-      <div class="tb t-brake" data-k="brake">FREIO</div>
-      <div class="tb t-jump" data-k="jump">PULO</div>
+      <div class="tb t-spin" data-k="spin"><svg viewBox="0 0 24 24"><path d="M12 4.5a7.5 7.5 0 1 0 7.2 9.6h-2.7A5 5 0 1 1 12 7v2.6l4.4-3.8L12 2z"/></svg><span>GIRO</span></div>
+      <div class="tb t-flip" data-k="flip"><svg viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3L19.5 4.5V11h-6.5l2.5-2.5A5 5 0 0 0 7 12z"/><path d="M19.5 12a7.5 7.5 0 0 1-12.8 5.3L4.5 19.5V13h6.5l-2.5 2.5A5 5 0 0 0 17 12z"/></svg><span>MORTAL</span></div>
+      <div class="tb t-boost" data-k="boost" id="t-boost"><svg viewBox="0 0 24 24"><path d="M13.5 1.5 4.5 13.5h6L9 22.5l10.5-13h-6.3z"/></svg><span>TURBO</span></div>
+      <div class="tb t-jump" data-k="jump"><svg viewBox="0 0 24 24"><path d="M12 3.5 21 13h-5.5v7.5h-7V13H3z"/></svg><span>PULO</span></div>
     </div>
   </div>
 
