@@ -14,7 +14,7 @@ const seed = Number(process.argv[4] || 12345);
 const simSeconds = Number(process.argv[5] || 300);
 const scene = new THREE.Scene();
 const track = createTrack({ scene });
-track.reset(seed, 0);
+track.reset(seed, 0, process.env.ONLY ? { only: process.env.ONLY.split(',') } : null);
 const deaths = {}; const events = { jump: 0, land: 0, trick: 0, bonk: 0, checkpoint: 0 };
 let deadFlag = null;
 const p = createPlayer(track, (t, d) => { if (t === 'dead') deadFlag = d; else if (t in events) events[t]++; });

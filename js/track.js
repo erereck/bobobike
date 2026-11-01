@@ -3,8 +3,13 @@
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { zoneAt } from './themes.js';
+import motionPack from './pieces/motion.js';
+import terrainPack from './pieces/terrain.js';
+import surfacesPack from './pieces/surfaces.js';
+import setpiecesPack from './pieces/setpieces.js';
 
-export const KIND = { SOLID: 0, KILL: 1, BOOST: 2, JUMP: 3, CHECK: 4, FALL: 5, DECOR: 6 };
+export const KIND = { SOLID: 0, KILL: 1, BOOST: 2, JUMP: 3, CHECK: 4, FALL: 5, DECOR: 6, CONVEYOR: 7, ICE: 8, BOUNCE: 9 };
+const VK_LASER = 10; // visual-only kind: glowing laser beam (collides as KILL)
 const BOX = 0, RAMP = 1;
 const CELL = 24;
 const AHEAD = 440;
@@ -17,12 +22,19 @@ const JUMP_COL = new THREE.Color('#2bd96b');
 const FALL_COL = new THREE.Color('#f4f1de');
 const WHITE = new THREE.Color('#ffffff');
 const KERB_DARK = new THREE.Color('#23263f');
+const CONVEYOR_COL = new THREE.Color('#2b2d42');
+const ICE_COL = new THREE.Color('#bde7ff');
+const BOUNCE_COL = new THREE.Color('#ff4fa3');
+const LASER_COL = new THREE.Color('#ff2a6d');
 
 const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
 const _p = new THREE.Vector3();
 const _s = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0);
+const _q2 = new THREE.Quaternion();
+const _axX = new THREE.Vector3(1, 0, 0);
+const _axZ = new THREE.Vector3(0, 0, 1);
 const ZERO_M = new THREE.Matrix4().makeScale(0, 0, 0);
 const EMPTY = [];
 const NODIST = -1e9; // collider does not count toward distance
@@ -89,6 +101,33 @@ vec3 kEmis = vec3(0.0);
     float st = step(0.5, fract((vLocal.x + vLocal.z + vLocal.y) * 0.9));
     diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.1), vec3(1.0, 0.78, 0.1), st), isSide);
     kEmis += vec3(1.0, 0.6, 0.1) * rim * 0.35 * isTop;
+  } else if (kk == 7) { // conveyor belt: yellow chevrons streaming toward local -z
+    float chev = fract((-vLocal.z + abs(vLocal.x) * 0.7) * 0.6 + uTime * 1.6);
+    float arrow = smoothstep(0.55, 0.62, chev) * (1.0 - smoothstep(0.82, 0.9, chev));
+    float belt = 0.5 + 0.5 * step(0.5, fract(vLocal.z * 2.0 + uTime * 3.2));
+    vec3 top = mix(base * (0.8 + 0.2 * belt), vec3(1.0, 0.82, 0.15), arrow);
+    float stripe = step(0.5, fract((vLocal.x + vLocal.y + vLocal.z) * 1.2));
+    diffuseColor.rgb = mix(mix(base, vec3(1.0, 0.82, 0.15), stripe * 0.8), top, isTop);
+    kEmis += vec3(1.0, 0.7, 0.1) * arrow * 0.9 * isTop;
+  } else if (kk == 8) { // ice: pale, glossy streaks and sparkles
+    float streak = smoothstep(0.86, 1.0, sin((vLocal.x * 0.8 + vLocal.z * 1.7) * 1.3) * 0.5 + 0.5);
+    vec2 cell = floor(vLocal.xz * 1.5);
+    float h = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+    float sparkle = step(0.965, h) * (0.5 + 0.5 * sin(uTime * 6.0 + h * 40.0));
+    diffuseColor.rgb = mix(base, vec3(1.0), (streak * 0.35 + 0.12) * isTop);
+    kEmis += vec3(0.75, 0.92, 1.0) * (sparkle * 1.6 * isTop + 0.08 + streak * 0.12 * isTop);
+  } else if (kk == 9) { // bounce pad: pink pulses and polka dots
+    float r = length(vLocal.xz);
+    float ring = smoothstep(0.3, 0.5, fract(r * 0.8 - uTime * 2.4));
+    vec2 dg = fract(vLocal.xz * 0.8) - 0.5;
+    float dot1 = smoothstep(0.2, 0.16, length(dg));
+    vec3 ac = mix(base, vec3(1.0, 0.85, 0.95), ring * 0.6 + dot1 * 0.3);
+    diffuseColor.rgb = mix(base * 0.85, ac, isTop);
+    kEmis += base * (0.25 + ring * 0.9) * isTop + base * 0.2 * isSide;
+  } else if (kk == 10) { // laser: hot core, scanlines
+    float scan = 0.75 + 0.25 * sin(vLocal.x * 18.0 - uTime * 30.0);
+    diffuseColor.rgb = vec3(1.0);
+    kEmis += base * (2.2 * scan) + vec3(1.0) * 0.6;
   }
 }
 `;
@@ -114,7 +153,7 @@ ${BLOCK_FRAG}`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
 totalEmissiveRadiance += kEmis;`);
   };
-  mat.customProgramCacheKey = () => 'obby-block-v1';
+  mat.customProgramCacheKey = () => 'obby-block-v2';
   return mat;
 }
 
@@ -255,6 +294,21 @@ export function createTrack({ scene }) {
   const coinFree = [];
   let coinHw = 0;
 
+  // turbo rings: fly through them for turbo
+  const RING_MAX = 120;
+  const ringGeo = new THREE.TorusGeometry(1.6, 0.16, 10, 36);
+  const ringMat = new THREE.MeshStandardMaterial({
+    color: '#7df9ff', emissive: '#22d3ee', emissiveIntensity: 1.1, metalness: 0.3, roughness: 0.3,
+  });
+  const ringMesh = new THREE.InstancedMesh(ringGeo, ringMat, RING_MAX);
+  ringMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  ringMesh.count = 0;
+  ringMesh.frustumCulled = false;
+  scene.add(ringMesh);
+  const ringFree = [];
+  let ringHw = 0;
+  const rings = [];
+
   // shared sign geometry/materials
   const postGeo = new THREE.BoxGeometry(1, 1, 1);
   const postMat = new THREE.MeshStandardMaterial({ color: '#f4f4f8', roughness: 0.5 });
@@ -334,7 +388,14 @@ export function createTrack({ scene }) {
     if (!col.pool || col.idx < 0) return;
     _p.set(col.x + ox, col.y + oy, col.z + oz);
     _q.setFromAxisAngle(_up, col.yaw);
+    if (col.tilt) { _q2.setFromAxisAngle(col.tiltAxis === 'x' ? _axX : _axZ, col.tilt); _q.multiply(_q2); }
     _s.set(col.hx * 2, col.hy * 2, col.hz * 2);
+    if (col.move && col.move.type === 4 && !col.active) {
+      // blinking hazard: hidden while off, thin flicker just before it switches back on
+      if (!col.blinkWarn) { col.pool.mesh.setMatrixAt(col.idx, ZERO_M); col.pool.dirty = true; return; }
+      _s.y *= 0.25;
+      _s.x *= 0.6 + 0.4 * (Math.sin(uniforms.uTime.value * 40) * 0.5 + 0.5);
+    }
     _m.compose(_p, _q, _s);
     col.pool.mesh.setMatrixAt(col.idx, _m);
     col.pool.dirty = true;
@@ -345,6 +406,7 @@ export function createTrack({ scene }) {
       kind, shape, x, y, z, hx, hy, hz, yaw, c: Math.cos(yaw), s: Math.sin(yaw),
       d0, d1, pool, idx: -1, cells: [], active: true, move: null, vx: 0, vz: 0,
       bx: x, by: y, bz: z, cp: -1, spawn: null, fall: null, gate: null, dead: false,
+      vy: 0, spinW: 0, push: null, tilt: 0, tiltAxis: 'z', blinkWarn: false,
     };
     if (pool) {
       col.idx = pool.alloc();
@@ -372,7 +434,11 @@ export function createTrack({ scene }) {
   function turn(dyaw) {
     cur.yaw = Math.max(-MAX_YAW, Math.min(MAX_YAW, cur.yaw + dyaw));
   }
-  const ROADLIKE = (k) => k === KIND.SOLID || k === KIND.BOOST || k === KIND.JUMP || k === KIND.CHECK || k === KIND.FALL;
+  const ROADLIKE = (k) => k === KIND.SOLID || k === KIND.BOOST || k === KIND.JUMP || k === KIND.CHECK || k === KIND.FALL
+    || k === KIND.CONVEYOR || k === KIND.ICE || k === KIND.BOUNCE;
+  const defaultColor = (kind) => (kind === KIND.KILL ? KILL_COL : kind === KIND.BOOST ? BOOST_COL
+    : kind === KIND.JUMP ? JUMP_COL : kind === KIND.FALL ? FALL_COL : kind === KIND.CONVEYOR ? CONVEYOR_COL
+    : kind === KIND.ICE ? ICE_COL : kind === KIND.BOUNCE ? BOUNCE_COL : pickColor());
 
   // Platform from forward a..b relative to cursor, top at cur.y + dy.
   function slab(kind, a, b, w, o = {}) {
@@ -380,8 +446,7 @@ export function createTrack({ scene }) {
     const top = cur.y + (o.dy ?? 0);
     const off = o.off ?? 0;
     const mid = (a + b) / 2;
-    const color = o.color ?? (kind === KIND.KILL ? KILL_COL : kind === KIND.BOOST ? BOOST_COL
-      : kind === KIND.JUMP ? JUMP_COL : kind === KIND.FALL ? FALL_COL : pickColor());
+    const color = o.color ?? defaultColor(kind);
     const counts = ROADLIKE(kind) && !o.noDist;
     return addCol(kind, BOX, o.pool ?? statics, wx(off, mid), top - th / 2, wz(off, mid),
       w / 2, th / 2, (b - a) / 2, cur.yaw + (o.yaw ?? 0), color,
@@ -399,6 +464,15 @@ export function createTrack({ scene }) {
     const c = { x: wx(lx, lf), y: cur.y + h, z: wz(lx, lf), idx, taken: false, ph: rng() * 6.28 };
     coins.push(c);
     piece.coins.push(c);
+  }
+  function addRing(lx, lf, h) {
+    const idx = ringFree.length ? ringFree.pop() : (ringHw < RING_MAX ? ringHw++ : -1);
+    if (idx < 0) return null;
+    ringMesh.count = ringHw;
+    const r = { x: wx(lx, lf), y: cur.y + h, z: wz(lx, lf), yaw: cur.yaw, idx, taken: false, ph: rng() * 6.28 };
+    rings.push(r);
+    piece.rings.push(r);
+    return r;
   }
   function coinLine(f0, f1, lx, n) {
     for (let i = 0; i < n; i++) addCoin(lx, f0 + (f1 - f0) * (i / Math.max(1, n - 1)), 1.15);
@@ -753,22 +827,125 @@ export function createTrack({ scene }) {
     ['zigzag', () => (d01 > 0.45 ? 0.6 : 0)],
   ];
   const EARLY = new Set(['straight', 'turbo', 'kicker', 'killStrips', 'curve', 'jumpPad', 'gates', 'slalom']);
+
+  // ------------------------------------------------ piece packs (js/pieces/*.js)
+  // Each pack default-exports an array of { name, weight(d01) => number, minDist?, early?, gen(ctx) }.
+  const PACK = new Map();
+  for (const pack of [motionPack, terrainPack, surfacesPack, setpiecesPack]) {
+    if (!Array.isArray(pack)) continue;
+    for (const def of pack) {
+      if (!def || typeof def.gen !== 'function' || typeof def.name !== 'string' || P[def.name] || PACK.has(def.name)) continue;
+      PACK.set(def.name, def);
+      WEIGHTS.push([def.name, () => (cur.dist < (def.minDist || 0) ? 0 : def.weight(d01))]);
+      if (def.early) EARLY.add(def.name);
+    }
+  }
+  let onlyTypes = null; // test hook: restrict generation to these piece names
+
   function pickType() {
     const early = cur.dist < 260;
-    const ok = (name) => name !== lastType && (!early || EARLY.has(name));
+    const ok = (name) => name !== lastType && (onlyTypes ? onlyTypes.has(name) : (!early || EARLY.has(name)));
     let total = 0;
-    for (const [name, wf] of WEIGHTS) if (ok(name)) total += Math.max(0, wf());
+    for (const [name, wf] of WEIGHTS) if (ok(name)) total += Math.max(0, wf() || 0);
+    if (total <= 0) return onlyTypes && onlyTypes.size ? [...onlyTypes][0] : 'straight';
     let r = rng() * total;
     for (const [name, wf] of WEIGHTS) {
       if (!ok(name)) continue;
-      r -= Math.max(0, wf());
+      r -= Math.max(0, wf() || 0);
       if (r <= 0) return name;
     }
     return 'straight';
   }
 
+  const POOLS = { static: statics, dyn };
+  function clampYaw() { cur.yaw = Math.max(-MAX_YAW, Math.min(MAX_YAW, cur.yaw)); }
+  // attach motion to a collider (re-registers it in the hash with its full reach)
+  function move(col, sp) {
+    const lx = Math.cos(col.yaw), lz = -Math.sin(col.yaw); // collider local +x in world
+    const fx = -Math.sin(col.yaw), fz = -Math.cos(col.yaw); // collider local forward (-z) in world
+    let m, reach = 0;
+    const ph = sp.phase ?? 0;
+    if (sp.type === 'slide') {
+      const axis = sp.axis || 'x';
+      m = { type: 1, ax: axis === 'x' ? lx : axis === 'z' ? fx : 0, ay: axis === 'y' ? 1 : 0, az: axis === 'x' ? lz : axis === 'z' ? fz : 0, amp: sp.amp ?? 3, w: sp.speed ?? 1, ph };
+      reach = axis === 'y' ? 0 : m.amp;
+    } else if (sp.type === 'spin') {
+      m = { type: 2, w: sp.speed ?? 1, ph: col.yaw + ph };
+    } else if (sp.type === 'pendulum') {
+      const L = sp.length ?? 6, axis = sp.axis || 'x';
+      const dx = axis === 'x' ? lx : fx, dz = axis === 'x' ? lz : fz;
+      const fr = sp.fraction ?? 1;
+      m = { type: 3, L, fr, amp: sp.amp ?? 1, w: sp.speed ?? 1.5, ph, dx, dz, px: col.x, py: col.y + L * fr, pz: col.z, axis };
+      col.tiltAxis = axis === 'x' ? 'z' : 'x';
+      reach = L * Math.sin(Math.min(1.5, m.amp)) * fr + 0.5;
+    } else if (sp.type === 'blink') {
+      m = { type: 4, on: sp.on ?? 1.2, off: sp.off ?? 1.2, ph };
+    } else if (sp.type === 'orbit') {
+      m = { type: 5, R: sp.radius ?? 3, w: sp.speed ?? 1, ph };
+      reach = m.R;
+    } else return col;
+    col.move = m;
+    if (col.kind !== KIND.DECOR) { hashRemove(col); hashInsert(col, reach + 0.5); }
+    if (!movers.includes(col)) movers.push(col);
+    return col;
+  }
+
+  // API handed to piece packs. Coordinates are cursor-local: lx = lateral (+right), lf = forward
+  // distance from the cursor, dy = height relative to the cursor's road top.
+  const ctx = {
+    KIND,
+    get rng() { return rng; },
+    get d01() { return d01; },
+    get cur() { return { x: cur.x, y: cur.y, z: cur.z, yaw: cur.yaw, dist: cur.dist }; },
+    MAX_YAW,
+    colors: { KILL: KILL_COL, BOOST: BOOST_COL, JUMP: JUMP_COL, FALL: FALL_COL, WHITE, KERB_DARK, CONVEYOR: CONVEYOR_COL, ICE: ICE_COL, BOUNCE: BOUNCE_COL, LASER: LASER_COL },
+    W, pickColor, shade, col3,
+    zone: () => zoneHere(),
+    // road-like platform from forward a..b; o: { off, dy, th, color, pool:'static'|'dyn', yaw, reach, noDist }
+    slab(kind, a, b, w, o = {}) {
+      const po = typeof o.pool === 'string' ? POOLS[o.pool] : o.pool;
+      return slab(kind, a, b, w, { ...o, pool: po ?? (o.pool === undefined ? undefined : statics) });
+    },
+    ramp(a, b, w, rise, color) { return ramp(a, b, w, rise, color); },
+    // any box centered at (lx, lf) with its CENTER at height dy; size w x h x d (full sizes)
+    // o: { yaw (offset), color, pool:'static'|'dyn', laser:true (visual), dist:true (counts toward distance) }
+    box(kind, lx, lf, dy, w, h, d, o = {}) {
+      const pool = o.pool === 'dyn' ? dyn : statics;
+      const color = o.color ?? (o.laser ? LASER_COL : defaultColor(kind));
+      const counts = !!o.dist && ROADLIKE(kind);
+      return addCol(kind, BOX, pool, wx(lx, lf), cur.y + dy, wz(lx, lf), w / 2, h / 2, d / 2,
+        cur.yaw + (o.yaw ?? 0), color, counts ? cur.dist + lf - d / 2 : NODIST, counts ? cur.dist + lf + d / 2 : NODIST,
+        0, o.laser ? VK_LASER : kind);
+    },
+    // visual-only block (no collision); handy for arms, towers, arches, scenery
+    decor(lx, lf, dy, w, h, d, o = {}) {
+      return addCol(KIND.DECOR, BOX, o.pool === 'dyn' ? dyn : statics, wx(lx, lf), cur.y + dy, wz(lx, lf), w / 2, h / 2, d / 2,
+        cur.yaw + (o.yaw ?? 0), o.color ?? pickColor(), NODIST, NODIST, 0, o.laser ? VK_LASER : (o.vkind ?? KIND.SOLID));
+    },
+    // motion: { type:'slide', axis:'x'|'y'|'z', amp, speed, phase } | { type:'spin', speed, phase }
+    //   | { type:'pendulum', length, amp (rad), speed, phase, axis:'x'|'z', fraction } | { type:'blink', on, off, phase }
+    //   | { type:'orbit', radius, speed, phase }   (colliders must use pool:'dyn' to render motion)
+    move,
+    // conveyor push (m/s) along the collider's local forward (-z); negative pushes backwards
+    conveyor(col, speed) {
+      const fx = -Math.sin(col.yaw), fz = -Math.cos(col.yaw);
+      col.push = { x: fx * speed, z: fz * speed };
+      return col;
+    },
+    advance(len, dy = 0) { advance(len, dy); },
+    turn(dyaw) { turn(dyaw); },
+    setYaw(yaw) { cur.yaw = yaw; clampYaw(); },
+    addCoin(lx, lf, h = 1.15) { addCoin(lx, lf, h); },
+    coinLine(f0, f1, lx, n) { coinLine(f0, f1, lx, n); },
+    addRing(lx, lf, h) { return addRing(lx, lf, h); },
+    // a named arch across the road at forward lf (two lines of text); use sparingly (one canvas each)
+    banner(lf, w, lines, bg = '#1b1f3b', fg = '#ffd23f', glow = false) {
+      return makeGate(wx(0, lf), cur.y, wz(0, lf), cur.yaw, w, lines, bg, fg, glow);
+    },
+  };
+
   function newPiece() {
-    piece = { d0: cur.dist, d1: cur.dist, cols: [], coins: [], objs: [], disposables: [] };
+    piece = { d0: cur.dist, d1: cur.dist, cols: [], coins: [], rings: [], objs: [], disposables: [] };
     pieces.push(piece);
   }
 
@@ -800,7 +977,21 @@ export function createTrack({ scene }) {
     piece.type = type;
     // a clean landing strip after every gap, so long drops never land straight on a hazard
     if (lastType === 'gap' && type !== 'gap') { slab(KIND.SOLID, 0, 14, W() + 1); advance(14); }
-    P[type]();
+    if (P[type]) P[type]();
+    else {
+      const sx = cur.x, sz = cur.z, sy = cur.y, syaw = cur.yaw, sd = cur.dist;
+      try {
+        PACK.get(type).gen(ctx);
+      } catch (e) {
+        console.warn('[track] piece "' + type + '" failed:', e);
+      }
+      clampYaw();
+      // a pack piece must move forward; if it failed or did nothing, fall back to a straight
+      if (!(cur.dist > sd + 1) || !Number.isFinite(cur.x + cur.y + cur.z)) {
+        cur.x = sx; cur.z = sz; cur.y = sy; cur.yaw = syaw; cur.dist = sd;
+        P.straight();
+      }
+    }
     if (type !== 'gap') decor();
     lastType = type;
     piece.d1 = cur.dist;
@@ -820,6 +1011,11 @@ export function createTrack({ scene }) {
       if (!c.taken) { coinMesh.setMatrixAt(c.idx, ZERO_M); coinFree.push(c.idx); c.taken = true; }
       const i = coins.indexOf(c);
       if (i >= 0) { coins[i] = coins[coins.length - 1]; coins.pop(); }
+    }
+    for (const r of p.rings) {
+      if (!r.taken) { ringMesh.setMatrixAt(r.idx, ZERO_M); ringFree.push(r.idx); r.taken = true; }
+      const i = rings.indexOf(r);
+      if (i >= 0) { rings[i] = rings[rings.length - 1]; rings.pop(); }
     }
     for (const o of p.objs) scene.remove(o);
     for (const d of p.disposables) d.dispose();
@@ -854,11 +1050,14 @@ export function createTrack({ scene }) {
       return out;
     },
 
-    reset(seed, record = 0) {
+    reset(seed, record = 0, opts = null) {
+      onlyTypes = opts && Array.isArray(opts.only) && opts.only.length ? new Set(opts.only) : null;
       while (pieces.length) removePiece(pieces.shift());
       statics.reset(); ramps.reset(); dyn.reset();
       for (let i = 0; i < coinHw; i++) coinMesh.setMatrixAt(i, ZERO_M);
       coinFree.length = 0; coinHw = 0; coinMesh.count = 0;
+      for (let i = 0; i < ringHw; i++) ringMesh.setMatrixAt(i, ZERO_M);
+      ringFree.length = 0; ringHw = 0; ringMesh.count = 0; rings.length = 0;
       hash.clear();
       movers.length = 0; fallers.length = 0; coins.length = 0; flags.length = 0;
       rng = makeRng(seed);
@@ -889,9 +1088,27 @@ export function createTrack({ scene }) {
           const s = Math.sin(ph) * m.amp, v = Math.cos(ph) * m.amp * m.w;
           col.x = col.bx + m.ax * s; col.z = col.bz + m.az * s;
           col.vx = m.ax * v; col.vz = m.az * v;
-        } else {
+          if (m.ay) { col.y = col.by + m.ay * s; col.vy = m.ay * v; }
+        } else if (m.type === 2) {
           col.yaw = m.ph + m.w * t;
           col.c = Math.cos(col.yaw); col.s = Math.sin(col.yaw);
+          col.spinW = m.w;
+        } else if (m.type === 3) {
+          const a = m.w * t + m.ph;
+          const th = m.amp * Math.sin(a), dth = m.amp * m.w * Math.cos(a);
+          const r = m.L * m.fr, st = Math.sin(th), ct = Math.cos(th);
+          col.x = m.px + m.dx * st * r; col.z = m.pz + m.dz * st * r; col.y = m.py - ct * r;
+          col.vx = m.dx * ct * r * dth; col.vz = m.dz * ct * r * dth; col.vy = st * r * dth;
+          col.tilt = m.axis === 'x' ? th : -th;
+        } else if (m.type === 4) {
+          const per = m.on + m.off;
+          const lt = (((t + m.ph) % per) + per) % per;
+          col.active = lt < m.on;
+          col.blinkWarn = !col.active && lt > per - 0.45;
+        } else if (m.type === 5) {
+          const a = m.w * t + m.ph;
+          col.x = col.bx + Math.cos(a) * m.R; col.z = col.bz + Math.sin(a) * m.R;
+          col.vx = -Math.sin(a) * m.R * m.w; col.vz = Math.cos(a) * m.R * m.w;
         }
       }
       for (let i = 0; i < fallers.length; i++) {
@@ -1006,6 +1223,23 @@ export function createTrack({ scene }) {
       }
     },
 
+    // Fly through a ring (center within ~1.4 m) for turbo.
+    collectRings(px, py, pz, cb) {
+      for (let i = 0; i < rings.length; i++) {
+        const r = rings[i];
+        if (r.taken) continue;
+        const dx = r.x - px, dy = r.y - (py + 0.9), dz = r.z - pz;
+        if (dx * dx + dy * dy + dz * dz < 2.4) {
+          r.taken = true;
+          ringMesh.setMatrixAt(r.idx, ZERO_M);
+          ringFree.push(r.idx);
+          cb(r);
+        }
+      }
+    },
+
+    pieceNames() { return [...Object.keys(P).filter((n) => n !== 'gap' && n !== 'checkpoint'), ...PACK.keys()]; },
+
     zoneIndexAt,
 
     // Per-frame visuals.
@@ -1031,6 +1265,22 @@ export function createTrack({ scene }) {
         _s.set(1, 1, 1);
         _m.compose(_p, _q, _s);
         coinMesh.setMatrixAt(c.idx, _m);
+      }
+      for (let i = 0; i < rings.length; i++) {
+        const r = rings[i];
+        if (r.taken) continue;
+        const pulse = 1 + Math.sin(time * 5 + r.ph) * 0.06;
+        _p.set(r.x, r.y, r.z);
+        _q.setFromAxisAngle(_up, r.yaw);
+        _s.set(pulse, pulse, pulse);
+        _m.compose(_p, _q, _s);
+        ringMesh.setMatrixAt(r.idx, _m);
+      }
+      if (ringHw) {
+        const rim = ringMesh.instanceMatrix;
+        rim.clearUpdateRanges();
+        rim.addUpdateRange(0, ringHw * 16);
+        rim.needsUpdate = true;
       }
       const cim = coinMesh.instanceMatrix;
       cim.clearUpdateRanges();

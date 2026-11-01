@@ -221,3 +221,52 @@ The HUD must not cover the track. In compact mode:
 
 ### Main responsibilities (lead)
 Infinite mode logic and separate records (`store.infBestDistance`, `store.infBestAvgKmh`), skins unlock only from normal-mode records, `'end'` → game over, joystick input (analog throttle/brake/steer), camera drag from `consumeCameraDrag()`, haptics via `navigator.vibrate`, Screen Wake Lock during play, fullscreen + landscape orientation lock attempt, wider FOV in portrait.
+
+---
+
+## v4 — piece packs (more track variety)
+
+New pieces live in **piece packs**: `js/pieces/motion.js`, `js/pieces/terrain.js`, `js/pieces/surfaces.js`, `js/pieces/setpieces.js`.
+Each pack `export default [ ...pieceDefs ]` (no imports from track.js — everything comes through `ctx`).
+
+```js
+{
+  name: 'm_elevators',            // unique, prefixed by pack: m_ / t_ / s_ / x_
+  weight: (d01) => 0.8,           // relative pick weight; d01 = difficulty 0 (start) .. 1 (5.2 km)
+  minDist: 300,                   // optional: never before this distance (m)
+  early: false,                   // optional: allowed in the friendly first 260 m
+  gen(ctx) { ... },               // builds the piece starting at the cursor, leaves the cursor at its end
+}
+```
+
+### ctx API (cursor-local coordinates: `lx` lateral, + = right; `lf` forward from the cursor; `dy` height relative to the cursor's road top)
+- `ctx.KIND` — SOLID, KILL, BOOST, JUMP (launch pad), CHECK, FALL (crumbling), DECOR, CONVEYOR, ICE, BOUNCE (trampoline)
+- `ctx.rng()` (seeded — ALWAYS use it, never Math.random), `ctx.d01`, `ctx.cur` (copy of {x,y,z,yaw,dist}), `ctx.MAX_YAW` (1.15 rad)
+- `ctx.W()` standard road width for the current difficulty; `ctx.pickColor()`, `ctx.shade(color)`, `ctx.col3('#hex')`, `ctx.colors.{KILL,BOOST,JUMP,FALL,WHITE,KERB_DARK,CONVEYOR,ICE,BOUNCE,LASER}`, `ctx.zone()` (current theme)
+- `ctx.slab(kind, a, b, w, o)` — platform from forward `a` to `b`, width `w`, top at `cur.y + (o.dy||0)`; `o`: `{ off (lateral), dy, th (thickness, default 1.4), color, pool: 'static'|'dyn', yaw (offset), noDist }`. Returns the collider. Road-like kinds count toward distance automatically.
+- `ctx.ramp(a, b, w, rise, color)` — wedge rising forward.
+- `ctx.box(kind, lx, lf, dy, w, h, d, o)` — any box with its CENTER at (lx, lf, cur.y+dy). `o`: `{ yaw, color, pool:'dyn', laser:true (glowing beam look; use with KILL), dist:true (road-like box that counts toward distance) }`.
+- `ctx.decor(lx, lf, dy, w, h, d, o)` — visual-only block (no collision): towers, arms, arches, scenery. `o.pool:'dyn'` if it moves.
+- `ctx.move(col, spec)` — motion (collider must be `pool:'dyn'` to render the motion):
+  - `{ type:'slide', axis:'x'|'y'|'z', amp, speed, phase }` (x = lateral, z = forward, y = vertical; sinusoidal, speed in rad/s)
+  - `{ type:'spin', speed, phase }` — turntable / spinning bar around its center (riders on a spinning platform are carried and turned)
+  - `{ type:'pendulum', length, amp (rad), speed, phase, axis:'x'|'z', fraction }` — hangs from a pivot `length` above the box; `fraction` 0.5 for an arm (use a DECOR box for the arm with the same params)
+  - `{ type:'blink', on, off, phase }` — collider toggles on/off (lasers); flickers 0.45 s before switching on
+  - `{ type:'orbit', radius, speed, phase }` — circles around its start position
+  Riders are carried by every moving platform type.
+- `ctx.conveyor(col, speed)` — conveyor push in m/s along the collider's local forward (negative = backwards). Use with KIND.CONVEYOR so it shows moving chevrons (chevrons point to local forward: give the collider a yaw that matches the push direction, e.g. `yaw: Math.PI/2` for a sideways belt).
+- `ctx.advance(len, dy)`, `ctx.turn(dyaw)`, `ctx.setYaw(abs)` (clamped to ±MAX_YAW)
+- `ctx.addCoin(lx, lf, h)`, `ctx.coinLine(f0, f1, lx, n)`, `ctx.addRing(lx, lf, h)` — turbo ring (fly through its center for +turbo; ring radius ≈1.6 m, faces the track direction)
+- `ctx.banner(lf, w, [line1, line2], bg, fg, glow)` — named arch across the road (one canvas texture each; max one per piece).
+
+### Physics facts (for fair design)
+gravity 34 m/s²; jump vy 12.2–13.8 (apex ≈2.2–2.8 m, flat airtime ≈0.75 s); top speeds 27.5–35 m/s, ×1.38 with turbo (up to ~48 m/s); boost pads set ≥1.15×max; jump pad vy 21 (+≥19 m/s forward); bounce pad vy ≥15; step-up 0.5 m (higher faces are walls); ledge forgiveness 0.35 m; kill hitbox is 0.22 m smaller than it looks; S brakes hard in the air; air control is strong. Crumbling tiles fall 0.8 s after touch. Conveyors carry at their speed; ice: almost no side grip, half acceleration.
+
+### Rules
+1. Start at the cursor with a solid entry (≥ 6 m, wide `ctx.W()`), end with a solid exit (≥ 8 m); total length 30–130 m; never build behind the cursor start (lf ≥ -1).
+2. Always move forward; keep net height change within ±12 m per piece and steer it back toward 0 when `ctx.cur.y` > 35 or < -35.
+3. Every jump/gap must be possible for ALL three vehicles at a moderate speed (12–20 m/s) AND must not become a death trap at max/turbo speed (long landings, or a wall/fence that stops overshoot). Hazards must be readable (KILL red / laser) and avoidable with skill, not luck.
+4. Budget per piece: ≤ 120 colliders total, ≤ 40 on the `dyn` pool. Only things that move use `dyn`.
+5. Difficulty scales with `ctx.d01`; mark only easy pieces `early: true`. Hard pieces get `minDist`.
+6. Coins / rings should suggest the good line and reward risk.
+7. Test: `node tools/piece-test.mjs <absolute project path> <name> [seeds] [botSeconds]` (geometry + bot; the bot is a dumb driver — it cannot time moving hazards, so treat its deaths as hints). Visual check: `http://localhost:5179/?timer&only=<name>` (server: `node tools/serve.mjs . 5179` from the project root, if not already running).

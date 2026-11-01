@@ -140,6 +140,8 @@ function setVehicle(id) {
 }
 
 function newSeed() { return (Math.random() * 0xffffffff) >>> 0; }
+// dev/test hook: ?only=pieceA,pieceB builds the track from those pieces only
+const ONLY = (() => { try { const v = new URLSearchParams(location.search).get('only'); return v ? { only: v.split(',') } : null; } catch (e) { return null; } })();
 
 // ------------------------------------------------------------ input
 const keys = new Set();
@@ -353,7 +355,7 @@ function toMenu() {
   runLive = false;
   state = 'menu';
   setWake(false);
-  track.reset(newSeed(), modeRecord(store.mode));
+  track.reset(newSeed(), modeRecord(store.mode), ONLY);
   preparePlayer();
   fx.clear();
   ui.setTouch(false);
@@ -367,7 +369,7 @@ function startRun(newTrack) {
   bankRun();
   runLive = true;
   ftCount = 0; lowFpsTime = 0; // judge performance after the track-rebuild hitch has left the average
-  if (newTrack) track.reset(newSeed(), modeRecord(store.mode));
+  if (newTrack) track.reset(newSeed(), modeRecord(store.mode), ONLY);
   preparePlayer();
   resetRunState();
   fx.clear();
@@ -476,6 +478,11 @@ function onPlayerEvent(type, data) {
       }
       break;
     case 'crumble':
+      break;
+    case 'bounce':
+      audio.play('jumppad');
+      buzz(15);
+      fx.burst('ring', pos, { color: '#ff4fa3' });
       break;
     case 'nearMiss':
       audio.play('whoosh');
@@ -598,6 +605,14 @@ function gameOver() {
   audio.play(isNewRecord ? 'record' : 'gameover');
 }
 
+const onRing = (r) => {
+  player.turbo = Math.min(1, player.turbo + 0.2);
+  audio.play('boost');
+  buzz(12);
+  fx.burst('ring', tmpV2.set(r.x, r.y, r.z), { color: '#7df9ff' });
+  fx.burst('stars', tmpV2);
+};
+
 const onCoin = (c) => {
   runState.coins++;
   player.turbo = Math.min(1, player.turbo + 0.045);
@@ -634,7 +649,7 @@ ui.on('mode', (id) => {
   save();
   if (ui.setMode) ui.setMode(id);
   // the menu track carries the record gate of the selected mode
-  if (state === 'menu') { track.reset(newSeed(), modeRecord(id)); preparePlayer(); }
+  if (state === 'menu') { track.reset(newSeed(), modeRecord(id), ONLY); preparePlayer(); }
 });
 ui.on('end', () => { if (runLive && (state === 'paused' || state === 'play' || state === 'dead' || state === 'countdown')) gameOver(); });
 ui.on('haptics', (v) => {
@@ -789,6 +804,7 @@ function frame(now) {
       runState.nextSample += 10;
     }
     track.collectCoins(rPos.x, rPos.y, rPos.z, onCoin);
+    track.collectRings(rPos.x, rPos.y, rPos.z, onRing);
     if (!runState.recordBeaten && runState.recordAtStart > 50 && player.maxProgress > runState.recordAtStart) {
       runState.recordBeaten = true;
       ui.toast('NOVO RECORDE!', 'record');
@@ -940,7 +956,7 @@ async function boot() {
   ui.setLoading(0.6);
   applyQuality();
   setVehicle(store.vehicle);
-  track.reset(newSeed(), modeRecord(store.mode));
+  track.reset(newSeed(), modeRecord(store.mode), ONLY);
   preparePlayer();
   ui.setLoading(0.8);
   // warm up shaders before showing the menu

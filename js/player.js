@@ -10,6 +10,7 @@ const TAU = Math.PI * 2;
 const FLIP_RATE = TAU / 0.6;
 const SPIN_RATE = TAU / 0.5;
 const JUMP_PAD_VY = 21;
+const BOUNCE_VY = 15;
 const JUMP_PAD_MIN_FWD = 19; // worst pad gap (10 m, +6 m) needs ~18 m/s
 
 export function createPlayer(track, emit) {
@@ -45,6 +46,7 @@ export function createPlayer(track, emit) {
     throttle: 0,
     lastPadCol: null,
     nearCd: 0,
+    bounceCarry: 0,
 
     setStats(s) { p.stats = s; },
 
@@ -101,8 +103,9 @@ export function createPlayer(track, emit) {
       p.throttle = inp.throttle;
 
       if (p.grounded) {
+        const ice = !!p.groundCol && p.groundCol.kind === KIND.ICE;
         if (inp.throttle > 0 && fwd < maxS) {
-          const a = st.accel * (p.boosting ? 1.9 : 1) * inp.throttle * (1 - 0.55 * Math.max(0, fwd) / maxS);
+          const a = st.accel * (p.boosting ? 1.9 : 1) * (ice ? 0.5 : 1) * inp.throttle * (1 - 0.55 * Math.max(0, fwd) / maxS);
           fwd = Math.min(maxS, fwd + a * dt);
         }
         if (inp.brake > 0) {
@@ -115,10 +118,10 @@ export function createPlayer(track, emit) {
         }
         if (fwd > maxS) fwd = Math.max(maxS, fwd - 7 * dt);
         fwd -= CONFIG.gravity * p.slope * 0.5 * dt;
-        lat *= Math.exp(-14 * dt);
+        lat *= Math.exp(-(ice ? 0.9 : 14) * dt); // ice barely grips sideways
 
         const sp01 = Math.min(1, Math.abs(fwd) / st.maxSpeed);
-        const rate = (st.turnRate + (st.turnRateHigh - st.turnRate) * sp01) * Math.min(1, 0.3 + Math.abs(fwd) / 5);
+        const rate = (st.turnRate + (st.turnRateHigh - st.turnRate) * sp01) * Math.min(1, 0.3 + Math.abs(fwd) / 5) * (ice ? 0.75 : 1);
         p.yaw -= p.steer * rate * dt * (fwd < -0.2 ? -1 : 1);
         // track assist: with no steering input, gently align with the platform under the wheels
         const gc = p.groundCol;
@@ -191,9 +194,20 @@ export function createPlayer(track, emit) {
       p.pos.x += p.vel.x * dt;
       p.pos.y += p.vel.y * dt;
       p.pos.z += p.vel.z * dt;
-      if (p.grounded && p.groundCol && p.groundCol.move && p.groundCol.move.type === 1) {
-        p.pos.x += p.groundCol.vx * dt;
-        p.pos.z += p.groundCol.vz * dt;
+      // ride along with whatever is under the wheels: moving/orbiting/swinging platforms, turntables, conveyors
+      const gc = p.grounded ? p.groundCol : null;
+      if (gc) {
+        if (gc.move && gc.move.type === 2) {
+          const a = gc.spinW * dt, ca = Math.cos(a), sa = Math.sin(a);
+          const rx0 = p.pos.x - gc.x, rz0 = p.pos.z - gc.z;
+          p.pos.x = gc.x + rx0 * ca + rz0 * sa;
+          p.pos.z = gc.z - rx0 * sa + rz0 * ca;
+          p.yaw += a;
+        } else if (gc.move) {
+          p.pos.x += gc.vx * dt;
+          p.pos.z += gc.vz * dt;
+        }
+        if (gc.push) { p.pos.x += gc.push.x * dt; p.pos.z += gc.push.z * dt; }
       }
 
       // walls & kill bricks
@@ -238,6 +252,7 @@ export function createPlayer(track, emit) {
         const up = Math.max(STEP_UP, oldY - p.pos.y + 0.05);
         if (track.ground(p.pos.x, p.pos.y, p.pos.z, up, 0.05, g, 0.3)) {
           const impact = Math.min(1, -p.vel.y / 24);
+          p.bounceCarry = -p.vel.y;
           p.grounded = true;
           p.onGround(g, time);
           if (!p.dead) p.land(impact);
@@ -289,6 +304,13 @@ export function createPlayer(track, emit) {
         // window must exceed the longest possible flight (turbo + trick bonus off a kicker ~96 m),
         // otherwise one big jump freezes maxProgress for the rest of the run
         if (prog > p.maxProgress && prog < p.maxProgress + 160) p.maxProgress = prog;
+      }
+      if (col.kind === KIND.BOUNCE) {
+        // trampoline: always throws you up; landing from higher throws you higher
+        p.vel.y = Math.min(24, BOUNCE_VY + p.bounceCarry * 0.35);
+        p.bounceCarry = 0;
+        p.grounded = false; p.groundCol = null; p.airTime = 0;
+        emit('bounce');
       }
     },
 
