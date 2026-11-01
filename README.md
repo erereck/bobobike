@@ -30,6 +30,8 @@ Roda direto no navegador (PC e celular), sem instalar nada. Feito com [Three.js]
 ## Como funciona
 
 - **Modos:** *Normal* (começa com 3 vidas e ganha +1 a cada 3 checkpoints, máximo 6) e *Vidas Infinitas* (sem game over, recordes separados; encerre pela pausa).
+- **Pista:** mais de 50 tipos de trecho, sorteados sem repetir de perto e ficando mais difíceis com a distância. Tem esteiras (pra frente, pra trás e pros lados), gelo, camas elásticas, aros de turbo, lasers que piscam, martelos, esmagadores, elevadores, plataformas giratórias e em órbita, montanha-russa, mega rampa, túnel, caminhos divididos (seguro × arriscado) e mais.
+- **Seções especiais:** de vez em quando aparece uma seção com nome e placa (Castelo, Escada Arco-Íris, Fábrica, Labirinto de Laser, Chuva de Moedas, Templo, Salto da Fé...).
 - **Zonas:** a cada ~620 m o céu muda (dia, tarde, pôr do sol, noite neon, aurora, nebulosa, amanhecer).
 - **Skins:** 4 grátis e 3 desbloqueadas pelo recorde do modo Normal (500 m, 1200 m e 2500 m).
 - **Recordes** ficam salvos no navegador (localStorage).
@@ -51,6 +53,7 @@ Depois abra http://localhost:5179.
 | `index.html` | página, estilos, HUD e menus |
 | `js/main.js` | loop do jogo, câmera, input, estados, recordes |
 | `js/track.js` | gerador procedural da pista, colisão e renderização instanciada |
+| `js/pieces/*.js` | pacotes de trechos de pista (movimento, terreno, superfícies, seções especiais) |
 | `js/player.js` | física do veículo e manobras |
 | `js/vehicles.js` | modelos 3D dos veículos e do personagem estilo Roblox R6, skins |
 | `js/environment.js` | céu, nuvens, mar de nuvens, ilhas, luz e sombras |

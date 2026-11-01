@@ -215,7 +215,10 @@ export default [
         rail(ctx, 0, RL, RW, 1, { h: 0.9 });
       }
       const P = 1.8; // pillar footprint
-      const pillar = (x, f) => ctx.box(KIND.KILL, x, f, 1.3, P, 2.6, P);
+      // early rinks use solid bumpers (sliding into one is a bonk, not a death); later ones are red
+      const deadly = d01 > 0.6;
+      const pillar = (x, f) => ctx.box(deadly ? KIND.KILL : KIND.SOLID, x, f, 1.3, P, 2.6, P,
+        deadly ? undefined : { color: ctx.colors.KERB_DARK });
       let last = 1; // the first row always leaves the middle open
       for (let r = 0; r < rows; r++) {
         const f = 14 + r * sp;

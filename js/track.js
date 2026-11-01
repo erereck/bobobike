@@ -102,7 +102,7 @@ vec3 kEmis = vec3(0.0);
     diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.1), vec3(1.0, 0.78, 0.1), st), isSide);
     kEmis += vec3(1.0, 0.6, 0.1) * rim * 0.35 * isTop;
   } else if (kk == 7) { // conveyor belt: yellow chevrons streaming toward local -z
-    float chev = fract((-vLocal.z + abs(vLocal.x) * 0.7) * 0.6 + uTime * 1.6);
+    float chev = fract((-vLocal.z + abs(vLocal.x) * 0.7) * 0.6 - uTime * 1.6);
     float arrow = smoothstep(0.55, 0.62, chev) * (1.0 - smoothstep(0.82, 0.9, chev));
     float belt = 0.5 + 0.5 * step(0.5, fract(vLocal.z * 2.0 + uTime * 3.2));
     vec3 top = mix(base * (0.8 + 0.2 * belt), vec3(1.0, 0.82, 0.15), arrow);
@@ -841,17 +841,31 @@ export function createTrack({ scene }) {
     }
   }
   let onlyTypes = null; // test hook: restrict generation to these piece names
+  // variety: where each piece type last started; named set pieces (x_*) stay rare and spaced out
+  const lastAt = new Map();
+  let lastSetAt = -1e9;
+  function recency(name) {
+    if (onlyTypes) return 1;
+    const at = lastAt.get(name);
+    if (name.startsWith('x_')) {
+      if (cur.dist - lastSetAt < 380) return 0;
+      if (at !== undefined && cur.dist - at < 1600) return 0.12;
+    }
+    if (at === undefined) return 1;
+    const since = cur.dist - at;
+    return since < 160 ? 0.2 : since < 420 ? 0.6 : 1;
+  }
 
   function pickType() {
     const early = cur.dist < 260;
     const ok = (name) => name !== lastType && (onlyTypes ? onlyTypes.has(name) : (!early || EARLY.has(name)));
     let total = 0;
-    for (const [name, wf] of WEIGHTS) if (ok(name)) total += Math.max(0, wf() || 0);
+    for (const [name, wf] of WEIGHTS) if (ok(name)) total += Math.max(0, wf() || 0) * recency(name);
     if (total <= 0) return onlyTypes && onlyTypes.size ? [...onlyTypes][0] : 'straight';
     let r = rng() * total;
     for (const [name, wf] of WEIGHTS) {
       if (!ok(name)) continue;
-      r -= Math.max(0, wf() || 0);
+      r -= Math.max(0, wf() || 0) * recency(name);
       if (r <= 0) return name;
     }
     return 'straight';
@@ -975,6 +989,8 @@ export function createTrack({ scene }) {
     else if (lastType !== 'gap' && lastType !== 'checkpoint' && rng() < 0.36 + d01 * 0.2) type = 'gap';
     else type = pickType();
     piece.type = type;
+    lastAt.set(type, cur.dist);
+    if (type.startsWith('x_')) lastSetAt = cur.dist;
     // a clean landing strip after every gap, so long drops never land straight on a hazard
     if (lastType === 'gap' && type !== 'gap') { slab(KIND.SOLID, 0, 14, W() + 1); advance(14); }
     if (P[type]) P[type]();
@@ -1063,6 +1079,7 @@ export function createTrack({ scene }) {
       rng = makeRng(seed);
       cur = { x: 0, y: 0, z: 0, yaw: 0, dist: -5 }; // spawn (5 m into the pad) is distance 0
       d01 = 0; lastCpDist = 0; cpCount = 0; lastType = 'checkpoint'; colorIdx = 0;
+      lastAt.clear(); lastSetAt = -1e9;
       recordDist = record; recordState = 0;
       newPiece();
       startPad();

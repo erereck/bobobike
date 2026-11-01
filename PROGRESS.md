@@ -42,8 +42,11 @@ Artifact (private to the owner until shared): https://claude.ai/artifact/CSa6DKF
 
 ## v4 (2026-11-01): many more track variations
 - DONE (lead, commit 0ffc65c, local only): piece registry + ctx API (SPEC.md "v4"), new kinds CONVEYOR/ICE/BOUNCE, laser look, motions slide-y/pendulum/blink/orbit/spin-carry, turbo rings, player carry/ice/bounce physics, tools/piece-test.mjs, ?only=<piece> URL hook.
-- RUNNING workflow wf_73009875-2aa (bobobike-piece-packs): js/pieces/{motion,terrain,surfaces,setpieces}.js, build then review each. Resume: Workflow({scriptPath: <session>/workflows/scripts/bobobike-piece-packs-wf_73009875-2aa.js, resumeFromRunId: "wf_73009875-2aa"}).
-- After: run piece-test on all, balance weights vs built-ins, playtest, push to main (Pages).
+- DONE (commit 7db2ce4, local): 41 pack pieces built (m_ 11, t_ 11, s_ 10, x_ 9); motion + surfaces reviewed and fixed.
+- RUNNING (resumed after the session limit): wf_73009875-2aa reviews for terrain + setpieces. Resume: Workflow({scriptPath: <session>/workflows/scripts/bobobike-piece-packs-wf_73009875-2aa.js, resumeFromRunId: "wf_73009875-2aa"}).
+- DONE (lead): conveyor chevrons now scroll forward (shader time sign); pickType recency (same type within 160 m x0.2, within 420 m x0.6; set pieces x_* at least 380 m apart, same one x0.12 within 1600 m); early s_iceRink pillars are solid bumpers (deadly only past d01 0.6).
+- Mixed-track check (8 seeds x 6 km, scratch mix.mjs): 56 distinct types, ~45% pack pieces after 260 m, set pieces min 390 m / median ~985 m apart, no overlap, no warnings.
+- TODO after reviews: rename x_gelo banner (duplicates s_iceRink "PISTA DE GELO"), t_megaRamp banner says "SEGURA O W!" (no W on phones), piece-test all, playtest, push to main (Pages).
 
 ## Dev tools
 - `dev/index.html` + `dev/stubs.js`: runs the core with stand-in modules (importmap remaps /js/ui.js etc.). `?timer` keeps the loop alive when the browser pane is hidden.
