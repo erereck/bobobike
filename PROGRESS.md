@@ -40,6 +40,11 @@ Artifact (private to the owner until shared): https://claude.ai/artifact/CSa6DKF
 - DONE (lead): main.js — infinite mode + separate records (infBestDistance/infBestAvgKmh), skins only from normal mode, 'end' event, analog joystick input (no auto-throttle), touch camera drag via ui.consumeCameraDrag(), haptics, wake lock, fullscreen + landscape lock, portrait FOV, sharper low-quality pixel ratio on phones.
 - DONE workflow wf_49fce5a9-b14 (mobile UI): floating joystick, right-side buttons with turbo ring, camera drag, compact HUD (speed pill), mode toggle, haptics/fullscreen settings, pause ENCERRAR CORRIDA. Verified in phone emulation 844x390, 740x360, 375x812.
 
+## v4 (2026-11-01): many more track variations
+- DONE (lead, commit 0ffc65c, local only): piece registry + ctx API (SPEC.md "v4"), new kinds CONVEYOR/ICE/BOUNCE, laser look, motions slide-y/pendulum/blink/orbit/spin-carry, turbo rings, player carry/ice/bounce physics, tools/piece-test.mjs, ?only=<piece> URL hook.
+- RUNNING workflow wf_73009875-2aa (bobobike-piece-packs): js/pieces/{motion,terrain,surfaces,setpieces}.js, build then review each. Resume: Workflow({scriptPath: <session>/workflows/scripts/bobobike-piece-packs-wf_73009875-2aa.js, resumeFromRunId: "wf_73009875-2aa"}).
+- After: run piece-test on all, balance weights vs built-ins, playtest, push to main (Pages).
+
 ## Dev tools
 - `dev/index.html` + `dev/stubs.js`: runs the core with stand-in modules (importmap remaps /js/ui.js etc.). `?timer` keeps the loop alive when the browser pane is hidden.
 - Headless bot: `node tools/bot.mjs <absolute obby path> bike <seed> <seconds>` (needs `npm i --no-save three@0.160.0`).
