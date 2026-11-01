@@ -585,25 +585,26 @@ button{font:inherit;color:inherit}
 .t-flip svg,.t-spin svg{width:40%;height:40%}
 
 /* ---------- overlays: toasts, zone banner, countdown, flash ---------- */
-#toasts{position:absolute;left:0;right:0;top:calc(var(--sat) + 17vh);display:none;flex-direction:column;align-items:center;gap:10px;padding:0 var(--gut)}
+/* toasts sit in a small lane right under the zone pill (top center), above the road, never over it */
+#toasts{position:absolute;left:0;right:0;top:calc(var(--sat) + 94px);display:none;flex-direction:column;align-items:center;gap:6px;padding:0 var(--gut);pointer-events:none}
 #ui.scr-hud #toasts,#ui.scr-gameover #toasts{display:flex}
 .toast{
   --tilt:-2deg;
-  max-width:min(100%,880px);overflow:hidden;text-align:center;text-wrap:balance;overflow-wrap:anywhere;
-  font:clamp(22px,3vw,34px)/1.05 var(--f-display);letter-spacing:.02em;color:#fff;text-shadow:var(--ol);
-  padding:8px 20px 10px;border-radius:15px;border:3px solid var(--ink);
+  max-width:min(100%,560px,calc(100vw - 480px));overflow:hidden; /* stays clear of the distance plate (top left) */text-align:center;text-wrap:balance;overflow-wrap:anywhere;
+  font:clamp(17px,1.5vw,22px)/1.05 var(--f-display);letter-spacing:.02em;color:#fff;text-shadow:var(--ol);
+  padding:5px 15px 7px;border-radius:12px;border:2.5px solid var(--ink);
   background:linear-gradient(135deg,#4fa8ff,#3a5bff);
-  box-shadow:inset 0 3px 0 rgba(255,255,255,.35),inset 0 -4px 0 rgba(0,0,0,.2),0 5px 0 var(--ink),0 12px 26px rgba(0,0,0,.3);
-  animation:toast 1.9s cubic-bezier(.25,.8,.3,1) both;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -3px 0 rgba(0,0,0,.2),0 3px 0 var(--ink),0 7px 16px rgba(0,0,0,.28);
+  animation:toast 1.7s cubic-bezier(.25,.8,.3,1) both;
   position:relative;
 }
 .toast.t-trick{background:linear-gradient(135deg,#b07bff,#ff4d8d)}
 .toast.t-good{background:linear-gradient(135deg,#5be37a,#14b39a)}
 .toast.t-bad{background:linear-gradient(135deg,#ff5f6e,#c2185b)}
 .toast.t-info{background:linear-gradient(135deg,#4fa8ff,#3a5bff)}
-.toast.t-cp{background:linear-gradient(135deg,#2fd884,#0aa2c9);padding-left:46px}
-.toast.t-cp::before{content:'';position:absolute;left:17px;top:50%;width:21px;height:25px;transform:translateY(-50%);background:#fff;clip-path:polygon(0 0,100% 27%,22% 54%,22% 100%,0 100%)}
-.toast.t-record{font-size:clamp(28px,4vw,46px);background:linear-gradient(135deg,#fff09a,#ffc93c 45%,#ff8a1c);animation-duration:2.7s;padding:10px 26px 12px}
+.toast.t-cp{background:linear-gradient(135deg,#2fd884,#0aa2c9);padding-left:36px}
+.toast.t-cp::before{content:'';position:absolute;left:12px;top:50%;width:15px;height:18px;transform:translateY(-50%);background:#fff;clip-path:polygon(0 0,100% 27%,22% 54%,22% 100%,0 100%)}
+.toast.t-record{font-size:clamp(21px,2vw,28px);background:linear-gradient(135deg,#fff09a,#ffc93c 45%,#ff8a1c);animation-duration:2.5s;padding:6px 18px 8px}
 .toast.t-record::after{content:'';position:absolute;top:-30%;bottom:-30%;left:-40%;width:28%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.8),transparent);transform:skewX(-20deg);animation:shineX 1.2s .3s ease-in-out 2}
 @keyframes shineX{from{left:-40%}to{left:120%}}
 @keyframes toast{
@@ -617,15 +618,16 @@ button{font:inherit;color:inherit}
 }
 @keyframes toastFade{0%{opacity:0}8%{opacity:1}85%{opacity:1}100%{opacity:0}}
 
-#zone-banner{position:absolute;left:0;right:0;top:calc(var(--sat) + 34%);height:130px;display:flex;align-items:center;justify-content:center;--accent:#3a86ff}
+/* zone banner: a slim band in the sky, below the toast lane (ui.js pushes it lower when tall toasts are up) */
+#zone-banner{position:absolute;left:0;right:0;top:max(calc(var(--sat) + 27%),calc(var(--sat) + 190px));height:90px;display:flex;align-items:center;justify-content:center;pointer-events:none;--accent:#3a86ff}
 #ui:not(.scr-hud) #zone-banner,#ui:not(.scr-hud) #countdown{display:none}
-.zb-band{position:absolute;left:-4%;right:-4%;top:14px;bottom:14px;transform:skewY(-3deg);transform-origin:0 50%;background:linear-gradient(90deg,rgba(11,13,23,0) 0,rgba(11,13,23,.86) 16%,rgba(11,13,23,.86) 84%,rgba(11,13,23,0) 100%)}
-.zb-band::before,.zb-band::after{content:'';position:absolute;left:0;right:0;height:5px;background:linear-gradient(90deg,transparent,var(--accent) 18%,var(--accent) 82%,transparent);box-shadow:0 0 18px var(--accent)}
-.zb-band::before{top:-5px}
-.zb-band::after{bottom:-5px}
-.zb-text{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;transform:skewY(-3deg);padding:0 var(--gut);text-align:center}
-.zb-num{font:700 18px/1 var(--f-num);letter-spacing:.42em;margin-right:-.42em;color:var(--accent);text-shadow:var(--ol-s)}
-.zb-name{font:clamp(34px,6.2vw,68px)/1 var(--f-display);text-transform:uppercase;letter-spacing:.02em;text-shadow:var(--ol),0 0 28px var(--accent)}
+.zb-band{position:absolute;left:-4%;right:-4%;top:12px;bottom:12px;transform:skewY(-3deg);transform-origin:50% 50%;background:linear-gradient(90deg,rgba(11,13,23,0) 0,rgba(11,13,23,.78) 22%,rgba(11,13,23,.78) 78%,rgba(11,13,23,0) 100%)}
+.zb-band::before,.zb-band::after{content:'';position:absolute;left:0;right:0;height:4px;background:linear-gradient(90deg,transparent,var(--accent) 24%,var(--accent) 76%,transparent);box-shadow:0 0 14px var(--accent)}
+.zb-band::before{top:-4px}
+.zb-band::after{bottom:-4px}
+.zb-text{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;transform:skewY(-3deg);padding:0 var(--gut);text-align:center}
+.zb-num{font:700 13px/1 var(--f-num);letter-spacing:.42em;margin-right:-.42em;color:var(--accent);text-shadow:var(--ol-s)}
+.zb-name{font:clamp(26px,3.3vw,42px)/1 var(--f-display);text-transform:uppercase;letter-spacing:.02em;text-shadow:var(--ol),0 0 22px var(--accent)}
 
 #countdown{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding-bottom:10vh}
 #cd-txt{position:relative;font:clamp(120px,22vw,220px)/1 var(--f-display);color:#fff;text-shadow:var(--ol-xl)}

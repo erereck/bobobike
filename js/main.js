@@ -428,6 +428,7 @@ function trickName(flips, spins) {
   return parts.join(' + ') + '!';
 }
 
+let nearToastAt = -1e9;
 function onPlayerEvent(type, data) {
   const pos = player.pos;
   switch (type) {
@@ -485,15 +486,17 @@ function onPlayerEvent(type, data) {
       buzz(15);
       fx.burst('ring', pos, { color: '#ff4fa3' });
       break;
-    case 'nearMiss':
+    case 'nearMiss': {
       audio.play('whoosh');
-      ui.toast('QUASE! +TURBO', 'good');
+      // the turbo bonus always lands; the toast at most every few seconds (obstacle-heavy pieces chain near misses)
+      const now = performance.now();
+      if (now - nearToastAt > 6000) { nearToastAt = now; ui.toast('QUASE! +TURBO', 'good'); }
       break;
+    }
     case 'trick': {
       const n = data.flips + data.spins;
       runState.tricks += n;
-      ui.toast(trickName(data.flips, data.spins), 'trick');
-      ui.toast(`+TURBO`, 'good');
+      ui.toast(trickName(data.flips, data.spins) + ' +TURBO', 'trick');
       audio.play('trick', { level: Math.min(4, n) });
       buzz(20);
       fx.burst('stars', tmpV.copy(pos).setY(pos.y + 1));
@@ -974,7 +977,7 @@ async function boot() {
 }
 
 // Debug handle for automated playtests (read-only use).
-window.bobobike = { get state() { return state; }, player, track, camera, env, fx, get audio() { return audio; }, get rig() { return rig; }, get pixelRatio() { return pixelRatio; }, get quality() { return quality; } };
+window.bobobike = { get state() { return state; }, player, track, camera, env, fx, ui, get audio() { return audio; }, get rig() { return rig; }, get pixelRatio() { return pixelRatio; }, get quality() { return quality; } };
 
 boot().catch((e) => {
   console.error(e);

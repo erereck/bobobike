@@ -257,7 +257,7 @@ Each pack `export default [ ...pieceDefs ]` (no imports from track.js — everyt
 - `ctx.conveyor(col, speed)` — conveyor push in m/s along the collider's local forward (negative = backwards). Use with KIND.CONVEYOR so it shows moving chevrons (chevrons point to local forward: give the collider a yaw that matches the push direction, e.g. `yaw: Math.PI/2` for a sideways belt).
 - `ctx.advance(len, dy)`, `ctx.turn(dyaw)`, `ctx.setYaw(abs)` (clamped to ±MAX_YAW)
 - `ctx.addCoin(lx, lf, h)`, `ctx.coinLine(f0, f1, lx, n)`, `ctx.addRing(lx, lf, h)` — turbo ring (fly through its center for +turbo; ring radius ≈1.6 m, faces the track direction)
-- `ctx.banner(lf, w, [line1, line2], bg, fg, glow)` — named arch across the road (one canvas texture each; max one per piece).
+- `ctx.banner(lf, w, [line1, line2], bg, fg, glow)` — named arch across the road (one canvas texture each; max one per piece). Only the first piece of each type in a run shows it (returns null afterwards); set pieces (x_*) always do.
 
 ### Physics facts (for fair design)
 gravity 34 m/s²; jump vy 12.2–13.8 (apex ≈2.2–2.8 m, flat airtime ≈0.75 s); top speeds 27.5–35 m/s, ×1.38 with turbo (up to ~48 m/s); boost pads set ≥1.15×max; jump pad vy 21 (+≥19 m/s forward); bounce pad vy ≥15; step-up 0.5 m (higher faces are walls); ledge forgiveness 0.35 m; kill hitbox is 0.22 m smaller than it looks; S brakes hard in the air; air control is strong. Crumbling tiles fall 0.8 s after touch. Conveyors carry at their speed; ice: almost no side grip, half acceleration.

@@ -148,7 +148,7 @@ const KF_ZB_TEXT = [
   { transform: 'skewY(-3deg) translateX(14px)', opacity: 1, offset: 0.82, easing: 'ease-in' },
   { transform: 'skewY(-3deg) translateX(120px)', opacity: 0 },
 ];
-const OPT_ZB = { duration: 2800, fill: 'both' };
+const OPT_ZB = { duration: 2300, fill: 'both' };
 
 // ---------------------------------------------------------------- helpers
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -919,8 +919,9 @@ export function createUI() {
     el.style.setProperty('--tilt', (toastN++ & 1 ? 1.5 : -1.5) + 'deg');
     el.addEventListener('animationend', onToastEnd);
     E.toasts.insertBefore(el, E.toasts.firstChild);
-    while (E.toasts.childElementCount > (compact ? 2 : 3)) E.toasts.lastElementChild.remove();
-    setTimeout(removeToast, kind === 'record' ? 3300 : 2500, el); // fallback if animations never run
+    while (E.toasts.childElementCount > 2) E.toasts.lastElementChild.remove();
+    setTimeout(removeToast, kind === 'record' ? 3100 : 2300, el); // fallback if animations never run
+    fitZoneBanner();
   }
   function toast(text, kind) {
     if (text == null || text === '') return;
@@ -933,7 +934,17 @@ export function createUI() {
   function clearToasts() { E.toasts.textContent = ''; }
 
   let zbA = null, zbB = null, zbTimer = 0;
-  function hideZoneBanner() { zbTimer = 0; E.zb.hidden = true; }
+  function hideZoneBanner() { zbTimer = 0; E.zb.hidden = true; E.zb.style.marginTop = ''; }
+  // Toasts and the zone banner can show together (a checkpoint or skin unlock right at a zone change):
+  // push the band below the toast stack. 12px = the band's inset; 28px covers its skew across a toast,
+  // its accent stripe and the toasts' tilt/pop (layout boxes ignore transforms).
+  function fitZoneBanner() {
+    if (E.zb.hidden) return;
+    E.zb.style.marginTop = '';
+    if (!E.toasts.childElementCount) return;
+    const need = E.toasts.getBoundingClientRect().bottom + 28 - (E.zb.getBoundingClientRect().top + 12);
+    if (need > 0) E.zb.style.marginTop = Math.ceil(need) + 'px';
+  }
   function zoneBanner(zoneNum, name, accent) {
     const acc = typeof accent === 'string' && accent ? accent : '#3a86ff';
     root.style.setProperty('--zone', acc);
@@ -943,6 +954,7 @@ export function createUI() {
     if (zbA) zbA.cancel();
     if (zbB) zbB.cancel();
     E.zb.hidden = false;
+    fitZoneBanner();
     zbA = anim(E.zbBand, KF_ZB_BAND, OPT_ZB);
     zbB = anim(E.zbText, KF_ZB_TEXT, OPT_ZB);
     clearTimeout(zbTimer);

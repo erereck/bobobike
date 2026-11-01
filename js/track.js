@@ -844,6 +844,7 @@ export function createTrack({ scene }) {
   // variety: where each piece type last started; named set pieces (x_*) stay rare and spaced out
   const lastAt = new Map();
   let lastSetAt = -1e9;
+  const signedBy = new Map(); // piece type -> start distance (d0) of the piece that showed its sign this run
   function recency(name) {
     if (onlyTypes) return 1;
     const at = lastAt.get(name);
@@ -952,8 +953,16 @@ export function createTrack({ scene }) {
     addCoin(lx, lf, h = 1.15) { addCoin(lx, lf, h); },
     coinLine(f0, f1, lx, n) { coinLine(f0, f1, lx, n); },
     addRing(lx, lf, h) { return addRing(lx, lf, h); },
-    // a named arch across the road at forward lf (two lines of text); use sparingly (one canvas each)
+    // a named arch across the road at forward lf (two lines of text); use sparingly (one canvas each).
+    // Only the first piece of each type in a run gets its sign (they hide what comes next); named set
+    // pieces (x_*) always keep theirs. Returns null when skipped.
     banner(lf, w, lines, bg = '#1b1f3b', fg = '#ffd23f', glow = false) {
+      const ty = piece.type || '';
+      if (!ty.startsWith('x_')) {
+        const first = signedBy.get(ty);
+        if (first !== undefined && first !== piece.d0) return null;
+        signedBy.set(ty, piece.d0);
+      }
       return makeGate(wx(0, lf), cur.y, wz(0, lf), cur.yaw, w, lines, bg, fg, glow);
     },
   };
@@ -1079,7 +1088,7 @@ export function createTrack({ scene }) {
       rng = makeRng(seed);
       cur = { x: 0, y: 0, z: 0, yaw: 0, dist: -5 }; // spawn (5 m into the pad) is distance 0
       d01 = 0; lastCpDist = 0; cpCount = 0; lastType = 'checkpoint'; colorIdx = 0;
-      lastAt.clear(); lastSetAt = -1e9;
+      lastAt.clear(); lastSetAt = -1e9; signedBy.clear();
       recordDist = record; recordState = 0;
       newPiece();
       startPad();
