@@ -200,6 +200,7 @@ button{font:inherit;color:inherit}
 }
 @container (max-width:300px){.pips i{width:9px}} /* 320px phones: the two stat columns overflowed the card */
 .m-play{margin-top:auto;display:flex;flex-direction:column;gap:12px;padding:6px 10px 0 0}
+.m-credit{margin:0;text-align:center;font:700 10px/1.35 var(--f-body);letter-spacing:.04em;color:rgba(255,255,255,.72);text-shadow:0 2px 6px var(--ink);pointer-events:none}
 .play-wrap{animation:breathe 1.8s ease-in-out infinite;border-radius:20px}
 @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.025)}}
 .play-wrap .btn{font-size:clamp(34px,3.4vw,46px)}
@@ -1048,6 +1049,7 @@ button{font:inherit;color:inherit}
       </div>
       <div class="play-wrap"><button type="button" class="btn btn-green btn-xl" data-act="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><span>JOGAR</span><kbd class="only-kb">ENTER</kbd></button></div>
       <div class="play-hint only-kb"><kbd class="key">←</kbd><kbd class="key">→</kbd> trocar veículo · <kbd class="key">ENTER</kbd> jogar</div>
+      <p class="m-credit">EriLab™ / Erick Luiz</p>
     </div>
    </div>
 
